@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## 0.10.1 — 2026-11-19
+
+**Instellingen als compacte lijst.**
+
+- De instellingen staan over de volle breedte in een lijst, gegroepeerd: *Aanmelden en sessies*, *Noodtoegang* en *Audit*. Per regel de omschrijving, de sleutel, de huidige waarde (met eenheid, ja/nee of een telling), of hij *Standaard* of *Aangepast* is, en wanneer hij voor het laatst is gewijzigd.
+- Klik op een regel om hem uit te klappen en te wijzigen; er is altijd hoogstens één open. Waarde en reden staan naast elkaar, met *Terug naar de standaard*. *Opslaan* kan pas als er iets is gewijzigd en er een reden staat. Escape of *Annuleren* klapt hem weer in.
+- Wie alleen mag kijken, ziet dezelfde lijst; uitklappen toont de waarde zonder te kunnen wijzigen.
+
 ## 0.10.0 — 2026-11-19
 
 **Ingangsdatum voor een nieuwe modelversie** bij Metadatamodel en Classificatiemodel. Vereist opendop-mini 0.12.0 op VPS 2.
