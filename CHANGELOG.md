@@ -1,5 +1,9 @@
 # Wijzigingen
 
+## 0.15.2 — 2026-11-19
+
+- Classificatiemodel, keuzes van een attribuut: typen met spaties ("in behandeling") en Enter voor een nieuwe regel werken weer. Het veld haalde bij elke toets lege regels en spaties aan het eind weg; nu gebeurt dat alleen in de keuzes zelf, niet in wat je typt. Het veld groeit mee met het aantal regels.
+
 ## 0.15.1 — 2026-11-19
 
 - Standaardattributen: de groepen staan in twee vaste kolommen (Privacy en Informatiebeveiliging links, Archief en Continuïteit rechts). Geen witruimte meer tussen de rijen, en een groep die groeit als je een attribuut aanzet, verspringt niet.

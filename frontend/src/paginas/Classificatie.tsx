@@ -1051,6 +1051,14 @@ function AttribuutBewerken({ a, st, kan, zet, weg }: { a: Attribuut; st?: Standa
       : a.koppeling;
     zet({ ...a, opties: nieuw, ...(koppeling ? { koppeling } : {}) });
   };
+  // De tekst zoals je hem typt (met spaties en lege regels); de keuzes zijn de niet-lege regels.
+  const leesOpties = (t: string) => t.split("\n").map((x) => x.trim()).filter(Boolean);
+  const [optiesTekst, zetOptiesTekst] = useState((a.opties ?? []).join("\n"));
+  useEffect(() => {
+    // Van buitenaf gewijzigd (bijvoorbeeld een andere versie geladen): de tekst volgt.
+    if (JSON.stringify(leesOpties(optiesTekst)) !== JSON.stringify(a.opties ?? [])) zetOptiesTekst((a.opties ?? []).join("\n"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [a.opties]);
   return (
     <div className={`cl-attribuut${st ? " cl-attribuut-st" : ""}`}>
       <div className="md-twee">
@@ -1067,7 +1075,7 @@ function AttribuutBewerken({ a, st, kan, zet, weg }: { a: Attribuut; st?: Standa
       </div>
       {a.type === "keuze" && (
         <FormField label={<FormLabel htmlFor={`${id}-opties`}>{tt("opties")}</FormLabel>}>
-          <Textarea id={`${id}-opties`} rows={Math.min(6, Math.max(3, (a.opties ?? []).length))} disabled={!kan} value={(a.opties ?? []).join("\n")} onChange={(e) => zetOpties(e.target.value.split("\n").map((x) => x.trim()).filter(Boolean))} />
+          <Textarea id={`${id}-opties`} rows={Math.min(10, Math.max(3, optiesTekst.split("\n").length + 1))} disabled={!kan} value={optiesTekst} onChange={(e) => { zetOptiesTekst(e.target.value); zetOpties(leesOpties(e.target.value)); }} />
         </FormField>
       )}
       {!!st?.betekenissen?.length && (
