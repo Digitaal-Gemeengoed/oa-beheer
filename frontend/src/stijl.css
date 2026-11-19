@@ -650,3 +650,18 @@ a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rg
 .cl-pv-toets ol { margin: 4px 0 6px; padding-inline-start: 1.3em; font-size: 12px; display: flex; flex-direction: column; gap: 2px; }
 .cl-pv-vink { display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .cl-pv-vink input { margin-top: 2px; }
+
+/* Standaardattributen in stap 5 */
+.cl-standaard { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 12px; margin: 8px 0 20px; align-items: start; }
+.cl-st-groep { border: 1px solid var(--ab-rand); border-radius: 8px; padding: 8px 12px 10px; margin: 0; background: var(--ab-kaart); min-width: 0; }
+.cl-st-groep legend { font-weight: 600; padding: 0 6px; }
+.cl-st-groep ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.cl-st { padding: 8px 0; border-top: 1px solid var(--ab-rand); }
+.cl-st:first-child { border-top: 0; }
+.cl-st-kop { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; cursor: pointer; }
+.cl-st-kop .utrecht-checkbox { margin-top: 3px; }
+.cl-st.aan .cl-attribuut-st { margin: 8px 0 0 30px; padding: 10px 12px; border-radius: 6px; background: var(--ab-blauw-zacht); }
+.cl-koppeling { margin: 4px 0 10px; display: flex; flex-direction: column; gap: 6px; }
+.cl-koppeling-regel { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center; font-size: 13px; }
+@media (max-width: 640px) { .cl-koppeling-regel { grid-template-columns: 1fr; } .cl-koppeling-regel > span[aria-hidden] { display: none; } .cl-st.aan .cl-attribuut-st { margin-left: 0; } }
+.cl-pv-voorstel { font-style: italic; }

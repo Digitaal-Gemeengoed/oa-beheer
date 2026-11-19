@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { boom, suggesties, zoek } from "../selectielijst";
 import { OPZET, steunKlassen, volgendeCode, type Ondersteunend } from "../ondersteunend";
+import { GROEPEN, nieuwStandaard, STANDAARDATTRIBUTEN, standaardVan, type StandaardAttribuut } from "../standaardattributen";
 import {
   Alert, Checkbox, FormField, FormLabel, Heading1, Heading2, Heading3, Paragraph, PrimaryActionButton, SecondaryActionButton,
   Select, SelectOption, StatusBadge, SubtleButton, Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow, Textarea, Textbox,
@@ -32,7 +33,7 @@ interface Resultaat {
 interface Selectielijst { id: string; naam: string; toelichting: string; procestypen: Procestype[]; resultaten: Resultaat[] }
 interface Afwijking { resultaat: string; waardering?: Waardering; bewaartermijn?: string; reden: string }
 type AttribuutType = "tekst" | "keuze" | "ja-nee";
-interface Attribuut { sleutel: string; label: string; type: AttribuutType; opties?: string[]; verplicht: boolean; beschrijving?: string }
+interface Attribuut { sleutel: string; label: string; type: AttribuutType; opties?: string[]; verplicht: boolean; beschrijving?: string; standaard?: string; koppeling?: Record<string, string> }
 interface Config {
   naam?: string;
   selectielijst: string;
@@ -105,8 +106,18 @@ const T = {
   reden: ["Reden (verplicht)", "Reason (required)"],
   weg: ["Afwijking weghalen", "Remove deviation"],
   klaar: ["Klaar", "Done"],
-  stap4: ["5. Eigen attributen", "5. Own attributes"],
-  stap4Uitleg: ["Kenmerken die je gemeente bij het classificeren wil vastleggen, zoals de BIV-classificatie of \"bevat bijzondere persoonsgegevens\". De medewerker vult ze in het paneel in.", "Characteristics your municipality wants to record when classifying, such as the CIA rating or \"contains special personal data\". The employee fills them in in the panel."],
+  stap4: ["5. Attributen", "5. Attributes"],
+  stap4Uitleg: ["Kenmerken die je gemeente bij het classificeren wil vastleggen. De medewerker vult ze in het paneel in.", "Characteristics your municipality wants to record when classifying. The employee fills them in in the panel."],
+  standaardKop: ["Standaardattributen", "Standard attributes"],
+  standaardUitleg: ["Attributen met een vaste betekenis, bij elke gemeente hetzelfde. Label, keuzes, hulptekst en verplicht pas je aan; de technische naam en de soort liggen vast. Daardoor kan de assistent er iets mee, zoals een keuze voorstellen of een veld alleen vragen waar het geldt. Een nieuwe versie van het model neemt ze mee zoals je ze instelde.", "Attributes with a fixed meaning, the same in every municipality. You adjust label, options, help text and required; the technical name and type are fixed. That lets the assistant use them, for instance to suggest a value or to ask only where it applies. A new version of the model keeps them as you set them."],
+  eigenKop: ["Eigen attributen", "Own attributes"],
+  bron: ["Bron", "Source"],
+  alleenBlijvend: ["Alleen gevraagd bij blijvend bewaren.", "Only asked for documents kept permanently."],
+  koppelingKop: ["Voorstel van de assistent", "Assistant's suggestion"],
+  koppelingUitleg: ["Welke keuze de assistent voorstelt. Hernoem je een keuze, dan gaat de koppeling mee.", "Which option the assistant suggests. If you rename an option, the link follows."],
+  geenVoorstel: ["(geen voorstel)", "(no suggestion)"],
+  vasteSoort: ["ligt vast", "fixed"],
+  standaardMerk: ["standaard", "standard"],
   label: ["Label", "Label"],
   sleutel: ["Technische naam", "Technical name"],
   soort: ["Soort", "Type"],
@@ -198,7 +209,7 @@ function vast(c: Config): string {
     selectielijst: c.selectielijst,
     uitgezet: [...(c.uitgezet ?? [])].sort(),
     afwijkingen: [...(c.afwijkingen ?? [])].map((a) => ({ resultaat: a.resultaat, waardering: a.waardering, bewaartermijn: a.bewaartermijn, reden: a.reden })).sort((a, b) => a.resultaat.localeCompare(b.resultaat)),
-    attributen: c.attributen.map((a) => ({ sleutel: a.sleutel, label: a.label, type: a.type, opties: a.opties, verplicht: a.verplicht, beschrijving: a.beschrijving || undefined })),
+    attributen: c.attributen.map((a) => ({ sleutel: a.sleutel, label: a.label, type: a.type, opties: a.opties, verplicht: a.verplicht, beschrijving: a.beschrijving || undefined, standaard: a.standaard, koppeling: a.koppeling })),
     vergrendelBij: [...c.vergrendelBij].sort(),
     termijnStartBij: c.termijnStartBij,
     zoektermen: [...(c.zoektermen ?? [])].filter((z) => z.termen.length).map((z) => ({ resultaat: z.resultaat, termen: z.termen })).sort((a, b) => a.resultaat.localeCompare(b.resultaat)),
@@ -316,7 +327,7 @@ function VersieBekijken({ ik, s, versie, herlaad }: { ik: Ik; s: Stand; versie: 
               <Heading2>{tt("attributen")}</Heading2>
               {v.config.attributen.length ? (
                 <ul className="ab-lijst">
-                  {v.config.attributen.map((a) => <li key={a.sleutel}><b>{a.label}</b> <span className="ab-klein">· {a.type}{a.verplicht ? ` · ${tt("verplicht").toLowerCase()}` : ""}</span>{a.opties?.length ? <span className="ab-klein ab-blok-regel">{a.opties.join(", ")}</span> : null}</li>)}
+                  {v.config.attributen.map((a) => <li key={a.sleutel}><b>{a.label}</b> <span className="ab-klein">{a.standaard ? ` · ${tt("standaardMerk")}` : ""} · {a.type}{a.verplicht ? ` · ${tt("verplicht").toLowerCase()}` : ""}</span>{a.opties?.length ? <span className="ab-klein ab-blok-regel">{a.opties.join(", ")}</span> : null}</li>)}
                 </ul>
               ) : <Paragraph className="ab-klein">{tt("geenAttributen")}</Paragraph>}
             </section>
@@ -719,9 +730,54 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
       <section aria-labelledby="cl-stap4" className="cl-sectie">
         <Heading2 id="cl-stap4">{tt("stap4")}</Heading2>
         <Paragraph className="ab-klein">{tt("stap4Uitleg")}</Paragraph>
-        {config.attributen.length === 0 && <Paragraph className="ab-klein">{tt("geenAttributen")}</Paragraph>}
+        <Heading3>{tt("standaardKop")}</Heading3>
+        <Paragraph className="ab-klein">{tt("standaardUitleg")}</Paragraph>
+        <div className="cl-standaard">
+          {GROEPEN.map((g) => (
+            <fieldset key={g} className="cl-st-groep">
+              <legend>{g}</legend>
+              <ul>
+                {STANDAARDATTRIBUTEN.filter((x) => x.groep === g).map((st) => {
+                  const i = config.attributen.findIndex((a) => a.standaard === st.sleutel);
+                  const a = i >= 0 ? config.attributen[i]! : null;
+                  return (
+                    <li key={st.sleutel} className={`cl-st${a ? " aan" : ""}`}>
+                      <label className="cl-st-kop">
+                        <Checkbox
+                          checked={!!a}
+                          disabled={!kan}
+                          onChange={(e) => zetConfig((c) => ({ ...c, attributen: e.target.checked ? [...c.attributen, nieuwStandaard(st)] : c.attributen.filter((x) => x.standaard !== st.sleutel) }))}
+                        />
+                        <span>
+                          <b>{st.label}</b>
+                          <span className="ab-klein ab-blok-regel">{st.toelichting}{st.alleenBijBlijvend ? ` ${tt("alleenBlijvend")}` : ""}</span>
+                          <span className="ab-klein ab-grijs ab-blok-regel">{tt("bron")}: {st.bron}</span>
+                        </span>
+                      </label>
+                      {a && (
+                        <>
+                          <AttribuutBewerken
+                            a={a}
+                            st={st}
+                            kan={kan}
+                            zet={(n) => zetConfig((c) => ({ ...c, attributen: c.attributen.map((x) => (x.standaard === st.sleutel ? n : x)) }))}
+                            weg={() => zetConfig((c) => ({ ...c, attributen: c.attributen.filter((x) => x.standaard !== st.sleutel) }))}
+                          />
+                          {(problemen ?? []).filter((p) => p.sleutel === a.sleutel).map((p, k) => <p key={k} className={`md-probleem ${p.ernst}`}>{p.melding}</p>)}
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </fieldset>
+          ))}
+        </div>
+
+        <Heading3>{tt("eigenKop")}</Heading3>
+        {config.attributen.filter((a) => !a.standaard).length === 0 && <Paragraph className="ab-klein">{tt("geenAttributen")}</Paragraph>}
         <ol className="md-velden">
-          {config.attributen.map((a, i) => (
+          {config.attributen.map((a, i) => a.standaard ? null : (
             <li key={a.sleutel} className="md-veld">
               <AttribuutBewerken
                 a={a}
@@ -733,7 +789,7 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
             </li>
           ))}
         </ol>
-        {kan && <NieuwAttribuut bestaand={new Set(config.attributen.map((a) => a.sleutel))} voegToe={(a) => zetConfig((c) => ({ ...c, attributen: [...c.attributen, a] }))} />}
+        {kan && <NieuwAttribuut bestaand={new Set([...config.attributen.map((a) => a.sleutel), ...STANDAARDATTRIBUTEN.map((x) => x.sleutel)])} voegToe={(a) => zetConfig((c) => ({ ...c, attributen: [...c.attributen, a] }))} />}
       </section>
 
       {/* 5. Controleren en publiceren */}
@@ -953,10 +1009,13 @@ function Voorbeeld({ config, lijst, versie }: { config: Config; lijst: Selectiel
                     <div className="md-paneel-invoer datum">dd-mm-jjjj</div>
                   </div>
                 )}
-                {config.attributen.map((a) => (
+                {config.attributen.filter((a) => !standaardVan(a)?.alleenBijBlijvend || gekozen.waardering === "blijvend-bewaren").map((a) => (
                   <div key={a.sleutel} className="md-paneel-veld">
                     <div className="md-paneel-label">{a.label || a.sleutel}{a.verplicht ? (en ? " (required)" : " (verplicht)") : ""}</div>
                     {a.beschrijving && <div className="md-paneel-hulp">{a.beschrijving}</div>}
+                    {a.standaard === "persoonsgegevens" && a.koppeling && Object.keys(a.koppeling).length > 0 && (
+                      <div className="md-paneel-hulp cl-pv-voorstel">{en ? "The assistant suggests an option from the personal data it finds." : "De assistent stelt een keuze voor op grond van de persoonsgegevens die hij vindt."}</div>
+                    )}
                     {a.type === "tekst" ? <div className="md-paneel-invoer" /> : <div className="md-paneel-invoer keuze">{en ? "Choose…" : "Kies…"}</div>}
                   </div>
                 ))}
@@ -977,16 +1036,24 @@ function Voorbeeld({ config, lijst, versie }: { config: Config; lijst: Selectiel
   );
 }
 
-function AttribuutBewerken({ a, kan, zet, weg }: { a: Attribuut; kan: boolean; zet: (a: Attribuut) => void; weg: () => void }) {
+function AttribuutBewerken({ a, st, kan, zet, weg }: { a: Attribuut; st?: StandaardAttribuut; kan: boolean; zet: (a: Attribuut) => void; weg: () => void }) {
   const id = `cl-a-${a.sleutel}`;
+  // Een keuze hernoemen: de koppeling gaat mee (zelfde plek in de lijst).
+  const zetOpties = (nieuw: string[]) => {
+    const oud = a.opties ?? [];
+    const koppeling = a.koppeling && nieuw.length === oud.length
+      ? Object.fromEntries(Object.entries(a.koppeling).map(([k, w]) => [k, oud.indexOf(w) >= 0 ? nieuw[oud.indexOf(w)]! : w]))
+      : a.koppeling;
+    zet({ ...a, opties: nieuw, ...(koppeling ? { koppeling } : {}) });
+  };
   return (
-    <div className="cl-attribuut">
+    <div className={`cl-attribuut${st ? " cl-attribuut-st" : ""}`}>
       <div className="md-twee">
         <FormField label={<FormLabel htmlFor={`${id}-label`}>{tt("label")}</FormLabel>} description={`${tt("sleutel")}: ${a.sleutel}`}>
           <Textbox id={`${id}-label`} value={a.label} maxLength={100} disabled={!kan} onChange={(e) => zet({ ...a, label: e.target.value })} />
         </FormField>
-        <FormField label={<FormLabel htmlFor={`${id}-soort`}>{tt("soort")}</FormLabel>}>
-          <Select id={`${id}-soort`} value={a.type} disabled={!kan} onChange={(e) => zet({ ...a, type: e.target.value as AttribuutType })}>
+        <FormField label={<FormLabel htmlFor={`${id}-soort`}>{tt("soort")}</FormLabel>} description={st ? tt("vasteSoort") : undefined}>
+          <Select id={`${id}-soort`} value={a.type} disabled={!kan || !!st} onChange={(e) => zet({ ...a, type: e.target.value as AttribuutType })}>
             <SelectOption value="tekst">{tt("tekst")}</SelectOption>
             <SelectOption value="keuze">{tt("keuze")}</SelectOption>
             <SelectOption value="ja-nee">{tt("janee")}</SelectOption>
@@ -995,8 +1062,31 @@ function AttribuutBewerken({ a, kan, zet, weg }: { a: Attribuut; kan: boolean; z
       </div>
       {a.type === "keuze" && (
         <FormField label={<FormLabel htmlFor={`${id}-opties`}>{tt("opties")}</FormLabel>}>
-          <Textarea id={`${id}-opties`} rows={3} disabled={!kan} value={(a.opties ?? []).join("\n")} onChange={(e) => zet({ ...a, opties: e.target.value.split("\n").map((x) => x.trim()).filter(Boolean) })} />
+          <Textarea id={`${id}-opties`} rows={Math.min(6, Math.max(3, (a.opties ?? []).length))} disabled={!kan} value={(a.opties ?? []).join("\n")} onChange={(e) => zetOpties(e.target.value.split("\n").map((x) => x.trim()).filter(Boolean))} />
         </FormField>
+      )}
+      {!!st?.betekenissen?.length && (
+        <div className="cl-koppeling">
+          <div className="cl-koppeling-kop"><b>{tt("koppelingKop")}</b> <span className="ab-klein">{tt("koppelingUitleg")}</span></div>
+          {st.betekenissen.map((b) => (
+            <label key={b.code} className="cl-koppeling-regel">
+              <span>{b.uitleg}</span>
+              <span aria-hidden="true">→</span>
+              <Select
+                value={a.koppeling?.[b.code] ?? ""}
+                disabled={!kan}
+                onChange={(e) => {
+                  const k = { ...(a.koppeling ?? {}) };
+                  if (e.target.value) k[b.code] = e.target.value; else delete k[b.code];
+                  zet({ ...a, koppeling: k });
+                }}
+              >
+                <SelectOption value="">{tt("geenVoorstel")}</SelectOption>
+                {(a.opties ?? []).map((o) => <SelectOption key={o} value={o}>{o}</SelectOption>)}
+              </Select>
+            </label>
+          ))}
+        </div>
       )}
       <FormField label={<FormLabel htmlFor={`${id}-hulp`}>{tt("hulptekst")}</FormLabel>}>
         <Textbox id={`${id}-hulp`} value={a.beschrijving ?? ""} maxLength={500} disabled={!kan} onChange={(e) => zet({ ...a, beschrijving: e.target.value || undefined })} />
@@ -1005,7 +1095,7 @@ function AttribuutBewerken({ a, kan, zet, weg }: { a: Attribuut; kan: boolean; z
         <label className="cl-vink">
           <Checkbox checked={a.verplicht} disabled={!kan} onChange={(e) => zet({ ...a, verplicht: e.target.checked })} /> {tt("verplicht")}
         </label>
-        {kan && <SecondaryActionButton onClick={weg}>{tt("verwijder")}</SecondaryActionButton>}
+        {kan && !st && <SecondaryActionButton onClick={weg}>{tt("verwijder")}</SecondaryActionButton>}
       </div>
     </div>
   );

@@ -38,7 +38,7 @@ interface Config {
   selectielijst: string;
   uitgezet?: string[];
   afwijkingen?: Afwijking[];
-  attributen: unknown[];
+  attributen: { sleutel: string; standaard?: string }[];
   vergrendelBij: string[];
   termijnStartBij: string;
   zoektermen?: { resultaat: string; termen: string[] }[];
@@ -129,6 +129,7 @@ export async function classificatieRoutes(app: FastifyInstance): Promise<void> {
           : {}),
         afwijkingen: c.afwijkingen?.length ?? 0,
         attributen: c.attributen.length,
+        standaardattributen: c.attributen.filter((x) => x.standaard).map((x) => x.standaard),
         vergrendelBij: c.vergrendelBij,
         termijnStartBij: c.termijnStartBij,
         ...(req.body.ingang ? { ingang: req.body.ingang } : {}),

@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## 0.15.0 — 2026-11-19
+
+**Standaardattributen in stap 5 van het classificatiemodel.**
+- Per groep (Privacy, Informatiebeveiliging, Archief, Continuïteit) een lijst om aan te zetten, met toelichting en bron. Label, keuzes, hulptekst en verplicht pas je aan; technische naam en soort liggen vast. Eigen attributen staan eronder, zoals voorheen; de sleutels van standaardattributen zijn daar niet te gebruiken.
+- Persoonsgegevens: per betekenis kies je welke keuze de assistent voorstelt. Hernoem je een keuze, dan gaat de koppeling mee.
+- Het voorbeeld vraagt de openbaarheidsbeperking alleen bij blijvend bewaren; de versiekaart merkt standaardattributen. De audit noemt welke standaardattributen aan staan.
+- Een nieuwe versie neemt de attributen over zoals ze zijn ingesteld.
+
 ## 0.14.1 — 2026-11-19
 
 - Dockerfile: `npm ci` met een BuildKit-cache voor npm, zodat een nieuwe versie niet alle pakketten opnieuw downloadt.
