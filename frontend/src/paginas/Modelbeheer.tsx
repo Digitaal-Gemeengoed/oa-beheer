@@ -26,78 +26,58 @@ export function ModelOverzicht(p: {
   basisLabel: string;
   concept?: { gewijzigd: string; door: string | null } | null;
   melding?: Melding;
-  extra?: ReactNode;
 }) {
-  const { actief } = p;
+  // De actieve versie opent de bewerker (een wijziging wordt een nieuwe versie); oudere versies alleen lezen.
+  const doel = (v: VersieRij) => (v.actief && p.kan ? `${p.pad}/bewerken` : `${p.pad}/versie/${v.versie}`);
   return (
     <>
       <div className="ab-paginakop">
         <Heading1>{p.titel}</Heading1>
-        {p.kan && (
-          <div className="ab-knoppen">
-            <SecondaryActionButton onClick={() => ga(`${p.pad}/nieuw`)}>+ {t("nieuwModel")}</SecondaryActionButton>
-            {actief && <PrimaryActionButton onClick={() => ga(`${p.pad}/bewerken`)}>{t("bewerken")}</PrimaryActionButton>}
-          </div>
-        )}
+        {p.kan && <PrimaryActionButton onClick={() => ga(`${p.pad}/nieuw`)}>+ {t("nieuwModel")}</PrimaryActionButton>}
       </div>
       <Paragraph className="ab-lead">{p.intro}</Paragraph>
       <MeldingVak m={p.melding ?? null} />
-      {p.concept && (
-        <div className="ab-concept">
-          <span><StatusBadge status="warning">{t("conceptOpen")}</StatusBadge> {t("conceptSinds")} {tijd(p.concept.gewijzigd)}{p.concept.door ? ` · ${p.concept.door}` : ""}</span>
-          {p.kan && <L naar={`${p.pad}/bewerken`}>{t("verderBewerken")} →</L>}
-        </div>
-      )}
-      <section className="ab-kaart ab-blok ab-actiefmodel">
-        <span className="ab-klein">{t("inGebruikNieuw")}</span>
-        {actief ? (
-          <>
-            <Heading2>{actief.naam} <span className="ab-pil">{t("versie")} {actief.versie}</span></Heading2>
-            <dl className="ab-feiten ab-feiten-rij">
-              <div><dt>{p.basisLabel}</dt><dd>{actief.basis}</dd></div>
-              <div><dt>{t("inhoud")}</dt><dd>{actief.omvang}</dd></div>
-              <div><dt>{t("gepubliceerdOp")}</dt><dd>{actief.gepubliceerd ? tijd(actief.gepubliceerd) : "—"}{actief.door ? ` · ${actief.door}` : ""}</dd></div>
-            </dl>
-            <div className="ab-knoppen">
-              <L naar={`${p.pad}/versie/${actief.versie}`}>{t("bekijken")}</L>
-            </div>
-          </>
-        ) : (
-          <Paragraph>{t("geenModelUitleg")}</Paragraph>
-        )}
-      </section>
-      {p.extra}
-      <Heading2>{t("versies")}</Heading2>
-      <Paragraph className="ab-klein">{t("versiesUitleg")}</Paragraph>
-      <div className="ab-tabel">
+      <div className="ab-tabel ab-versies">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHeaderCell>{t("versie")}</TableHeaderCell>
+              <TableHeaderCell>{t("versieKop")}</TableHeaderCell>
               <TableHeaderCell>{t("naam")}</TableHeaderCell>
               <TableHeaderCell>{p.basisLabel}</TableHeaderCell>
               <TableHeaderCell>{t("inhoud")}</TableHeaderCell>
               <TableHeaderCell>{t("gepubliceerdOp")}</TableHeaderCell>
-              <TableHeaderCell>{t("geldtVoor")}</TableHeaderCell>
-              <TableHeaderCell><span className="ab-verborgen">{t("acties")}</span></TableHeaderCell>
+              <TableHeaderCell>{t("status")}</TableHeaderCell>
             </TableRow>
           </TableHeader>
           <TableBody>
+            {p.concept && p.kan && (
+              <TableRow className="ab-klikbaar ab-conceptrij" onClick={() => ga(`${p.pad}/bewerken`)}>
+                <TableCell>—</TableCell>
+                <TableCell><L naar={`${p.pad}/bewerken`}>{t("concept")}</L></TableCell>
+                <TableCell colSpan={2} className="ab-klein">{t("conceptSinds")} {tijd(p.concept.gewijzigd)}{p.concept.door ? ` · ${p.concept.door}` : ""}</TableCell>
+                <TableCell>—</TableCell>
+                <TableCell><StatusBadge status="warning">{t("conceptOpen")}</StatusBadge></TableCell>
+              </TableRow>
+            )}
             {p.rijen.map((v) => (
-              <TableRow key={v.versie}>
-                <TableCell><b>{v.versie}</b></TableCell>
-                <TableCell>{v.naam}</TableCell>
+              <TableRow key={v.versie} className={`ab-klikbaar${v.actief ? " ab-actief" : ""}`} onClick={() => ga(doel(v))}>
+                <TableCell>{v.versie}</TableCell>
+                <TableCell><L naar={doel(v)}>{v.naam}</L></TableCell>
                 <TableCell>{v.basis}</TableCell>
                 <TableCell>{v.omvang}</TableCell>
                 <TableCell>{v.gepubliceerd ? tijd(v.gepubliceerd) : "—"}{v.door && <span className="ab-klein ab-blok-regel">{v.door}</span>}</TableCell>
-                <TableCell>{v.actief ? <StatusBadge status="safe">{t("nieuweStukken")}</StatusBadge> : <StatusBadge status="neutral">{t("bestaandeStukken")}</StatusBadge>}</TableCell>
-                <TableCell>{v.teBekijken && <L naar={`${p.pad}/versie/${v.versie}`}>{t("bekijken")}</L>}</TableCell>
+                <TableCell>
+                  {v.actief
+                    ? <><StatusBadge status="safe">{t("inGebruik")}</StatusBadge><span className="ab-klein ab-blok-regel">{t("nieuweStukken")}</span></>
+                    : <><StatusBadge status="neutral">{t("vorigeVersie")}</StatusBadge><span className="ab-klein ab-blok-regel">{t("bestaandeStukken")} · {t("alleenLezen")}</span></>}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-        {!p.rijen.length && <Paragraph className="ab-leeg">{t("geenVersies")}</Paragraph>}
+        {!p.rijen.length && <Paragraph className="ab-leeg">{t("geenModelUitleg")}</Paragraph>}
       </div>
+      <Paragraph className="ab-klein">{t("versiesUitleg")}</Paragraph>
     </>
   );
 }

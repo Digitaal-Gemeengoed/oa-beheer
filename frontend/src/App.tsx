@@ -160,12 +160,11 @@ export function App() {
   );
 }
 
-/** Submenu van een model: overzicht, bewerken (nieuwe versie), nieuw model. */
+/** Submenu van een model: de versies (de actieve opent de bewerker) en een nieuw model. */
 function Modelmenu({ pad, kan }: { pad: string; kan: boolean }) {
   return (
     <ul className="ab-nav-sub">
-      <li><L naar={pad} exact>{t("modelOverzicht")}</L></li>
-      {kan && <li><L naar={`${pad}/bewerken`}>{t("bewerken")}</L></li>}
+      <li><L naar={pad} exact>{t("versies")}</L></li>
       {kan && <li><L naar={`${pad}/nieuw`}>{t("nieuwModel")}</L></li>}
     </ul>
   );

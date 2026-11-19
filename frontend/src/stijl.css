@@ -377,6 +377,12 @@ a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rg
 .ab-snel a { display: block; padding: 6px 10px; border-radius: var(--ab-hoek); text-decoration: none; }
 .ab-snel a:hover { background: var(--ab-blauw-licht); }
 
+.ab-klikbaar { cursor: pointer; }
+.ab-ruimte { margin: 0 0 12px; }
+.ab-versies tbody tr.ab-klikbaar:hover td { background: var(--ab-blauw-zacht); }
+.ab-versies tr.ab-actief td { font-weight: 700; }
+.ab-versies tr.ab-actief td .ab-klein, .ab-versies tr.ab-actief td .utrecht-status-badge { font-weight: 600; }
+.ab-versies tr.ab-conceptrij td { background: var(--ab-oranje-licht); }
 .ab-concept { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 14px; margin: 8px 0 12px; border-radius: var(--ab-hoek-groot); background: var(--ab-oranje-licht); border: 1px solid #f2d9ad; }
 .ab-actiefmodel { margin: 8px 0 16px; border-left: 4px solid var(--ab-teal); }
 .ab-actiefmodel .utrecht-heading-2 { font-size: 18px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }

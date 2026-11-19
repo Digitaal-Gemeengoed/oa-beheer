@@ -245,7 +245,7 @@ export function Metadatamodel({ ik, deel = "" }: { ik: Ik; deel?: string }) {
   if (deel === "bewerken" && kan) return <Bewerker key={s.actief?.versie} ik={ik} s={s} herlaad={stand.herlaad} />;
   if (deel === "nieuw" && kan) return <NieuwModel ik={ik} s={s} herlaad={stand.herlaad} />;
   const v = /^versie\/(\d+)$/.exec(deel);
-  if (v) return <VersieBekijken s={s} versie={Number(v[1])} />;
+  if (v) return <VersieBekijken ik={ik} s={s} versie={Number(v[1])} herlaad={stand.herlaad} />;
   return <Overzicht s={s} kan={kan} />;
 }
 
@@ -285,14 +285,19 @@ function Overzicht({ s, kan }: { s: Stand; kan: boolean }) {
 }
 
 /** Eén versie, alleen lezen: welke velden, aan of verplicht, met label. */
-function VersieBekijken({ s, versie }: { s: Stand; versie: number }) {
+function VersieBekijken({ ik, s, versie, herlaad }: { ik: Ik; s: Stand; versie: number; herlaad: () => void }) {
   const cat = s.catalogus!;
   const rij = rijenVan(s).find((r) => r.versie === versie);
   const v = (s.versies ?? []).filter((x) => x.versie === versie).sort((a) => (a.gedeeld ? 1 : -1))[0];
   const config = v?.config ?? (v && rij?.actief ? configVanActief(s) : null);
+  const [basis, zetBasis] = useState<Config | null>(null);
+  if (basis) return <Bewerker ik={ik} s={s} herlaad={herlaad} start={basis} />;
   return (
     <>
       <VersieKop titel={tt("titel")} pad={PAD} rij={rij} />
+      {ik.rechten.includes("metadata.manage") && config && !rij?.actief && (
+        <div className="ab-knoppen ab-ruimte"><SecondaryActionButton onClick={() => zetBasis(config)}>{t("alsBasisNieuw")}</SecondaryActionButton></div>
+      )}
       {!v && <Alert type="warning"><Paragraph>{t("versieOnbekend")}</Paragraph></Alert>}
       {v && !config && <Paragraph>{tt("standaardmodel")} · {v.velden} {tt("velden").toLowerCase()}</Paragraph>}
       {config && (
@@ -598,7 +603,6 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
             )}
           </section>
 
-          <Versies versies={s.versies ?? []} cat={cat} kan={kan} neem={(c) => { zetConfig(c); zetOpen(null); }} />
         </div>
 
         <aside className="md-voorbeeld" aria-labelledby="md-voorbeeld-titel">
@@ -794,37 +798,3 @@ function Voorbeeld({ velden, model }: { velden: SchemaVeld[]; model: string }) {
   );
 }
 
-function Versies({ versies, cat, kan, neem }: { versies: Versie[]; cat: NonNullable<Stand["catalogus"]>; kan: boolean; neem: (c: Config) => void }) {
-  if (versies.length === 0) return null;
-  return (
-    <section aria-labelledby="md-versies">
-      <Heading2 id="md-versies">{tt("versies")}</Heading2>
-      <div className="ab-tabel">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHeaderCell>{tt("versie")}</TableHeaderCell>
-              <TableHeaderCell>{tt("naam")}</TableHeaderCell>
-              <TableHeaderCell>{tt("stap1").replace(/^1\. /, "")}</TableHeaderCell>
-              <TableHeaderCell>{tt("velden")}</TableHeaderCell>
-              <TableHeaderCell>{taal() === "en" ? "Published" : "Gepubliceerd"}</TableHeaderCell>
-              <TableHeaderCell />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {versies.map((v) => (
-              <TableRow key={`${v.versie}-${v.gedeeld}`}>
-                <TableCell>{v.versie} <span className="ab-klein">({v.gedeeld ? tt("gedeeld") : tt("eigenVersie")})</span></TableCell>
-                <TableCell>{v.modelnaam ?? (v.config ? naamVan(v.config, cat) : tt("standaardmodel"))}</TableCell>
-                <TableCell>{v.model ? cat.modellen[v.model]?.naam ?? v.model : tt("standaardmodel")}</TableCell>
-                <TableCell>{v.velden}</TableCell>
-                <TableCell>{tijd(v.gepubliceerd)}{v.door ? ` · ${v.door}` : ""}</TableCell>
-                <TableCell>{kan && v.config && <SubtleButton onClick={() => neem(v.config!)}>{tt("alsBasis")}</SubtleButton>}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </section>
-  );
-}

@@ -172,7 +172,7 @@ export function Classificatie({ ik, deel = "" }: { ik: Ik; deel?: string }) {
   if (deel === "bewerken" && kan && s.actief) return <Bewerker key={s.actief.versie} ik={ik} s={s} herlaad={stand.herlaad} />;
   if (deel === "nieuw" && kan) return <NieuwModel ik={ik} s={s} herlaad={stand.herlaad} />;
   const v = /^versie\/(\d+)$/.exec(deel);
-  if (v) return <VersieBekijken s={s} versie={Number(v[1])} />;
+  if (v) return <VersieBekijken ik={ik} s={s} versie={Number(v[1])} herlaad={stand.herlaad} />;
   return <Overzicht s={s} kan={kan} />;
 }
 
@@ -213,14 +213,19 @@ function Overzicht({ s, kan }: { s: Stand; kan: boolean }) {
 }
 
 /** Eén versie, alleen lezen. */
-function VersieBekijken({ s, versie }: { s: Stand; versie: number }) {
+function VersieBekijken({ ik, s, versie, herlaad }: { ik: Ik; s: Stand; versie: number; herlaad: () => void }) {
   const rij = rijenVan(s).find((r) => r.versie === versie);
   const v = (s.versies ?? []).find((x) => x.versie === versie);
   const lijst = v ? s.selectielijsten!.find((l) => l.id === v.config.selectielijst) : undefined;
   const naamVan = (id: string) => lijst?.resultaten.find((r) => r.id === id)?.naam ?? "";
+  const [basis, zetBasis] = useState<Config | null>(null);
+  if (basis) return <Bewerker ik={ik} s={s} herlaad={herlaad} start={basis} />;
   return (
     <>
       <VersieKop titel={tt("titel")} pad={PAD} rij={rij} />
+      {ik.rechten.includes("classificatie.manage") && v && !rij?.actief && (
+        <div className="ab-knoppen ab-ruimte"><SecondaryActionButton onClick={() => zetBasis(v.config)}>{t("alsBasisNieuw")}</SecondaryActionButton></div>
+      )}
       {!v && <Alert type="warning"><Paragraph>{t("versieOnbekend")}</Paragraph></Alert>}
       {v && (
         <div className="ab-twee">
@@ -577,37 +582,6 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
         )}
       </section>
 
-      {(s.versies?.length ?? 0) > 0 && (
-        <section aria-labelledby="cl-versies" className="cl-sectie">
-          <Heading2 id="cl-versies">{tt("versies")}</Heading2>
-          <div className="ab-tabel">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHeaderCell>{tt("versie")}</TableHeaderCell>
-                  <TableHeaderCell>{tt("naam").replace(/ van het model| of the model/, "")}</TableHeaderCell>
-                  <TableHeaderCell>{tt("vergrendel")}</TableHeaderCell>
-                  <TableHeaderCell>{tt("afwijkingen").split(" ")[0]}</TableHeaderCell>
-                  <TableHeaderCell>{taal() === "en" ? "Published" : "Gepubliceerd"}</TableHeaderCell>
-                  <TableHeaderCell />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {s.versies!.map((v) => (
-                  <TableRow key={v.versie}>
-                    <TableCell>{v.versie}</TableCell>
-                    <TableCell>{v.config.naam?.trim() || lijst.naam}</TableCell>
-                    <TableCell>{v.config.vergrendelBij.join(", ")}</TableCell>
-                    <TableCell>{v.config.afwijkingen?.length ?? 0}</TableCell>
-                    <TableCell>{tijd(v.gepubliceerd)}{v.door ? ` · ${v.door}` : ""}</TableCell>
-                    <TableCell>{kan && <SubtleButton onClick={() => zetConfig(v.config)}>{tt("alsBasis")}</SubtleButton>}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </section>
-      )}
     </>
   );
 }

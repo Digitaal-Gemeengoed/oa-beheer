@@ -1,5 +1,14 @@
 # Wijzigingen
 
+## 0.9.0 — 2026-11-19
+
+**Versies als eigen pagina** bij Metadatamodel en Classificatiemodel.
+
+- De pagina van een model is nu de lijst met versies. De versie in gebruik staat **vet**, met de status *In gebruik* (nieuwe stukken); oudere versies hebben de status *Vorige versie* (bestaande stukken, alleen lezen). Een concept in bewerking staat bovenaan.
+- **Klik op een versie om hem te openen.** De versie in gebruik (en een concept) opent in de bewerker; een wijziging publiceer je als nieuwe versie. Een oudere versie opent alleen lezen, met *Als basis voor een nieuwe versie*.
+- De knop **+ Nieuw model** staat rechtsboven. Het submenu heeft nu *Versies* en *Nieuw model*.
+- Het versieblok onderaan de bewerker is weg; dat staat nu op de versiepagina.
+
 ## 0.8.0 — 2026-11-19
 
 **Metadatamodel en Classificatiemodel: een overzicht met versies, bewerken en een nieuw model.**

@@ -171,7 +171,7 @@ const T = {
   gepubliceerdOp: ["Gepubliceerd", "Published"],
   bekijken: ["Bekijken", "View"],
   versies: ["Versies", "Versions"],
-  versiesUitleg: ["Elke versie blijft gelden voor de stukken die ermee zijn vastgelegd. Oudere versies zijn alleen te bekijken.", "Each version keeps applying to the documents registered with it. Older versions can only be viewed."],
+  versiesUitleg: ["Klik op een versie om hem te openen. De versie in gebruik open je in de bewerker; een wijziging publiceer je als nieuwe versie. Oudere versies blijven gelden voor de stukken die ermee zijn vastgelegd en zijn alleen te bekijken.", "Click a version to open it. The version in use opens in the editor; you publish a change as a new version. Older versions keep applying to the documents registered with them and can only be viewed."],
   geldtVoor: ["Geldt voor", "Applies to"],
   nieuweStukken: ["nieuwe stukken", "new documents"],
   bestaandeStukken: ["bestaande stukken", "existing documents"],
@@ -182,6 +182,12 @@ const T = {
   alleenLezenVersie: ["Alleen lezen: een gepubliceerde versie verandert niet meer. Wil je iets aanpassen, bewerk dan het model; dat maakt een nieuwe versie.", "Read only: a published version no longer changes. To change something, edit the model; that makes a new version."],
   versieOnbekend: ["Deze versie bestaat niet.", "This version does not exist."],
   verder: ["Verder", "Continue"],
+  concept: ["Concept", "Draft"],
+  versieKop: ["Versie", "Version"],
+  inGebruik: ["In gebruik", "In use"],
+  vorigeVersie: ["Vorige versie", "Previous version"],
+  alleenLezen: ["alleen lezen", "read only"],
+  alsBasisNieuw: ["Als basis voor een nieuwe versie", "Use as basis for a new version"],
 } as const;
 
 export type Sleutel = keyof typeof T;
