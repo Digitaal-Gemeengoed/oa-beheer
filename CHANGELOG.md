@@ -1,5 +1,12 @@
 # Wijzigingen
 
+## 0.12.0 — 2026-11-19
+
+**Classificatiemodel: klassen als boom, en een voorbeeld dat werkt zoals het paneel.**
+
+- Stap 3 heet nu *Klassen uit de selectielijst* en toont de selectielijst als boom: procestype, resultaat, uitwerkingen, met pijltjes om in en uit te klappen (*Alles uitklappen*, *Alles inklappen*). Elke regel is een klasse; het vinkje bepaalt of de medewerker hem in het paneel kan kiezen. Een vinkje bij een procestype of een resultaat met uitwerkingen zet alles eronder aan of uit, en toont een streepje als een deel aan staat. Bovenaan: hoeveel van de 344 klassen kiesbaar zijn. Zoeken klapt open wat past.
+- Het voorbeeld *Zo ziet de medewerker het* is nu bruikbaar: een voorbeeldtekst die je kunt veranderen (de voorstellen van de assistent volgen, met de woorden waarop ze steunen), een zoekbalk, en kiezen in stappen zoals in het paneel (oa-paneel 0.14.0). Alleen klassen die aan staan, met de termijn van de gemeente.
+
 ## 0.11.0 — 2026-11-19
 
 Vereist opendop-mini 0.13.0 op VPS 2.

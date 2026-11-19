@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { boom, suggesties, zoek } from "../selectielijst";
 import {
   Alert, Checkbox, FormField, FormLabel, Heading1, Heading2, Heading3, Paragraph, PrimaryActionButton, SecondaryActionButton,
   Select, SelectOption, StatusBadge, SubtleButton, Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow, Textarea, Textbox,
@@ -116,8 +117,20 @@ const T = {
   verwijder: ["Verwijderen", "Remove"],
   geenAttributen: ["Nog geen eigen attributen.", "No own attributes yet."],
   stap5: ["5. Controleren en publiceren", "5. Check and publish"],
+  boomUitleg: ["Elke regel is een klasse die de medewerker kan kiezen; met het vinkje bepaal je of hij in het paneel voorkomt. De lijst volgt de selectielijst: procestype, dan het resultaat, dan eventueel uitwerkingen. Een vinkje bij een procestype of resultaat zet alles eronder aan of uit; daarna kun je per regel bijstellen.", "Each line is a class the user can choose; the checkbox decides whether it appears in the panel. The list follows the retention schedule: process type, then result, then any refinements. A checkbox on a process type or result switches everything below it; you can then adjust per line."],
+  allesUitklappen: ["Alles uitklappen", "Expand all"],
+  allesInklappen: ["Alles inklappen", "Collapse all"],
+  vanKiesbaar: ["van", "of"],
+  klassenKiesbaar: ["klassen kiesbaar", "classes selectable"],
+  allesKiesbaar: ["alles eronder kiesbaar", "everything below selectable"],
+  kiesbaar: ["kiesbaar in het paneel", "selectable in the panel"],
+  uitwerking: ["uitwerking", "refinement"],
+  uitwerkingen: ["uitwerkingen", "refinements"],
+  groepZelfUit: ["Het resultaat zelf staat niet in deze selectielijst; alleen de uitwerkingen.", "The result itself is not in this schedule; only its refinements."],
   voorbeeld: ["Zo ziet de medewerker het", "What the user sees"],
-  voorbeeldUitleg: ["Het paneel Classificeren in de Office Assistent, met dit model. Klik op een klasse om haar als gekozen te zien.", "The Classify panel in the Office Assistant, with this model. Click a class to see it as chosen."],
+  voorbeeldUitleg: ["Het paneel Classificeren in de Office Assistent, met dit model. Probeer het: zoek, kies in stappen, of verander de voorbeeldtekst.", "The Classify panel in the Office Assistant, with this model. Try it: search, choose step by step, or change the sample text."],
+  voorbeeldTekst: ["Voorbeeldtekst van een stuk", "Sample text of a document"],
+  voorbeeldTekstUitleg: ["De assistent leest het stuk en stelt drie klassen voor. Verander de tekst om te zien wat hij voorstelt.", "The assistant reads the document and suggests three classes. Change the text to see what it suggests."],
   versieNieuw: ["nieuwe versie", "new version"],
   klopt: ["Het model klopt.", "The model is valid."],
   publiceren: ["Publiceren als nieuwe versie", "Publish as a new version"],
@@ -323,6 +336,9 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
   const [vraag, zetVraag] = useState("");
   const [open, zetOpen] = useState<string | null>(null);
   const lijst = s.selectielijsten!.find((l) => l.id === config.selectielijst) ?? s.selectielijsten![0]!;
+  const takken = useMemo(() => boom(lijst.resultaten, lijst.procestypen), [lijst]);
+  const [uitgeklapt, zetUitgeklapt] = useState<Set<string>>(new Set());
+  const klap = (k: string) => zetUitgeklapt((u) => { const n = new Set(u); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const gewijzigd = vervangt
     ? vast(config) !== vast(start!) || ingangVoorPlatform(ingang) !== ingangVoorPlatform(ingangInvoer(vervangt.ingang))
     : !s.actief || !!start || vast(config) !== vast(vanActief);
@@ -355,6 +371,61 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
   const q = vraag.trim().toLowerCase();
   const zichtbaar = (r: Resultaat) => !q || r.id === q || r.id.startsWith(`${q}.`) || `${r.naam} ${r.omschrijving} ${r.toelichting ?? ""}`.toLowerCase().includes(q);
   const fouten = (problemen ?? []).filter((p) => p.ernst === "fout");
+
+  // Eén klasse in de boom: vinkje (kiesbaar), naam en termijn, afwijken.
+  const rij = (r: Resultaat, o: { kop?: ReactNode; vink?: { aan: boolean; half: boolean; ids: string[] }; extra?: ReactNode; diep?: boolean } = {}) => {
+    const { kop, vink, extra, diep } = o;
+    const a = afw.get(r.id);
+    const isOpen = open === r.id;
+    return (
+      <li key={r.id} className={`cl-resultaat${uit.has(r.id) ? " uit" : ""}${diep ? " diep" : ""}`}>
+        <div className="cl-regel">
+          {kop ?? <span className="cl-boom-ruimte" aria-hidden="true" />}
+          <label className="cl-vink" title={tt("kiesbaar")}>
+            <Vinkje aan={vink?.aan ?? !uit.has(r.id)} half={vink?.half ?? false} disabled={!kan} zet={(aan) => zetUit(vink?.ids ?? [r.id], !aan)} label={`${r.id} ${tt("kiesbaar")}`} />
+          </label>
+          <div className="cl-naam">
+            <span><b>{r.id}</b> {r.naam}{r.omschrijving ? ` · ${r.omschrijving}` : ""}{extra}</span>
+            <span className="ab-klein">
+              {termijn(r)}
+              {r.procestermijn !== "nihil" ? " · gaat in als het procesobject vervalt" : ""}
+              {a && <> → <b>{termijn({ waardering: a.waardering ?? r.waardering, bewaartermijn: a.bewaartermijn ?? r.bewaartermijn })}</b> ({tt("afwijking")})</>}
+            </span>
+          </div>
+          {magAfwijken && <SubtleButton onClick={() => zetOpen(isOpen ? null : r.id)} aria-expanded={isOpen}>{isOpen ? tt("klaar") : tt("afwijken")}</SubtleButton>}
+        </div>
+        {isOpen && (
+          <div className="md-bewerk">
+            <div className="md-twee">
+              <FormField label={<FormLabel htmlFor={`cl-w-${r.id}`}>{tt("waardering")}</FormLabel>}>
+                <Select id={`cl-w-${r.id}`} value={a?.waardering ?? r.waardering} onChange={(e) => zetAfwijking(r.id, { waardering: e.target.value as Waardering })}>
+                  <SelectOption value="vernietigen">{tt("vernietigen")}</SelectOption>
+                  <SelectOption value="blijvend-bewaren">{tt("bewaren")}</SelectOption>
+                </Select>
+              </FormField>
+              {(a?.waardering ?? r.waardering) === "vernietigen" && (
+                <FormField label={<FormLabel htmlFor={`cl-j-${r.id}`}>{tt("jaren")}</FormLabel>} description={r.bewaartermijn ? `Selectielijst: ${duur(r.bewaartermijn)}` : undefined}>
+                  <Textbox
+                    id={`cl-j-${r.id}`}
+                    type="number"
+                    min={0}
+                    max={200}
+                    value={/^P(\d+)Y$/.exec(a?.bewaartermijn ?? "")?.[1] ?? ""}
+                    onChange={(e) => zetAfwijking(r.id, { bewaartermijn: e.target.value === "" ? undefined : `P${Math.max(0, Math.round(Number(e.target.value)))}Y` })}
+                  />
+                </FormField>
+              )}
+            </div>
+            <FormField label={<FormLabel htmlFor={`cl-r-${r.id}`}>{tt("reden")}</FormLabel>}>
+              <Textarea id={`cl-r-${r.id}`} rows={2} maxLength={1000} value={a?.reden ?? ""} onChange={(e) => zetAfwijking(r.id, { reden: e.target.value })} />
+            </FormField>
+            {a && <div><SubtleButton onClick={() => { zetAfwijking(r.id, null); zetOpen(null); }}>{tt("weg")}</SubtleButton></div>}
+          </div>
+        )}
+        {(problemen ?? []).filter((p) => p.sleutel === r.id).map((p, i) => <p key={i} className={`md-probleem ${p.ernst}`}>{p.melding}</p>)}
+      </li>
+    );
+  };
 
   const publiceer = async () => {
     zetBezig(true);
@@ -474,84 +545,67 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
             </ul>
           </div>
         )}
+        <Paragraph className="ab-klein">{tt("boomUitleg")}</Paragraph>
         <FormField label={<FormLabel htmlFor="cl-zoek">{tt("zoek")}</FormLabel>}>
-          <Textbox id="cl-zoek" value={vraag} onChange={(e) => zetVraag(e.target.value)} autoComplete="off" />
+          <Textbox id="cl-zoek" type="search" value={vraag} onChange={(e) => zetVraag(e.target.value)} autoComplete="off" />
         </FormField>
-        <div className="cl-procestypen">
-          {lijst.procestypen.map((pt) => {
-            const alle = lijst.resultaten.filter((r) => r.procestype === pt.nummer);
-            const rs = alle.filter(zichtbaar);
-            if (!rs.length) return null;
-            const aan = alle.filter((r) => !uit.has(r.id)).length;
+        <div className="ab-knoppen cl-boom-knoppen">
+          <SubtleButton onClick={() => zetUitgeklapt(new Set(takken.flatMap((tk) => [`p${tk.procestype.nummer}`, ...tk.groepen.map((g) => `g${g.id}`)])))}>{tt("allesUitklappen")}</SubtleButton>
+          <SubtleButton onClick={() => zetUitgeklapt(new Set())}>{tt("allesInklappen")}</SubtleButton>
+          <span className="ab-klein">{lijst.resultaten.length - uit.size} {tt("vanKiesbaar")} {lijst.resultaten.length} {tt("klassenKiesbaar")}</span>
+        </div>
+        <ul className="cl-boom" role="tree" aria-label={tt("stap3")}>
+          {takken.map((tk) => {
+            const ids = [...tk.groepen.flatMap((g) => [...(g.zelf ? [g.zelf.id] : []), ...g.uitwerkingen.map((r) => r.id)])];
+            const zichtbareGroepen = tk.groepen.filter((g) => (g.zelf && zichtbaar(g.zelf)) || g.uitwerkingen.some(zichtbaar));
+            if (!zichtbareGroepen.length) return null;
+            const aan = ids.filter((i) => !uit.has(i)).length;
+            const open = !!q || uitgeklapt.has(`p${tk.procestype.nummer}`);
             return (
-              <details key={pt.nummer} className="cl-procestype" open={!!q}>
-                <summary>
-                  <b>{pt.nummer}. {pt.naam}</b> <span className="ab-klein">({aan} van {alle.length} {tt("inGebruik")})</span>
-                </summary>
-                <p className="ab-klein">{pt.omschrijving}{pt.procesobject ? ` · Procesobject: ${pt.procesobject}` : ""}</p>
-                {kan && (
-                  <div className="ab-knoppen">
-                    <SubtleButton onClick={() => zetUit(alle.map((r) => r.id), false)}>{tt("alles")}</SubtleButton>
-                    <SubtleButton onClick={() => zetUit(alle.map((r) => r.id), true)}>{tt("niets")}</SubtleButton>
-                  </div>
-                )}
-                <ul className="cl-resultaten">
-                  {rs.map((r) => {
-                    const a = afw.get(r.id);
-                    const isOpen = open === r.id;
-                    return (
-                      <li key={r.id} className={`cl-resultaat${uit.has(r.id) ? " uit" : ""}${r.generiek ? "" : " generiek"}`}>
-                        <div className="cl-regel">
-                          <label className="cl-vink" title={tt("inGebruik")}>
-                            <Checkbox checked={!uit.has(r.id)} disabled={!kan} onChange={(e) => zetUit([r.id], !e.target.checked)} aria-label={`${r.id} ${tt("inGebruik")}`} />
-                          </label>
-                          <div className="cl-naam">
-                            <span><b>{r.id}</b> {r.naam}{r.omschrijving ? ` · ${r.omschrijving}` : ""}</span>
-                            <span className="ab-klein">
-                              {termijn(r)}
-                              {r.procestermijn !== "nihil" ? " · gaat in als het procesobject vervalt" : ""}
-                              {a && <> → <b>{termijn({ waardering: a.waardering ?? r.waardering, bewaartermijn: a.bewaartermijn ?? r.bewaartermijn })}</b> ({tt("afwijking")})</>}
-                            </span>
-                          </div>
-                          {magAfwijken && <SubtleButton onClick={() => zetOpen(isOpen ? null : r.id)} aria-expanded={isOpen}>{isOpen ? tt("klaar") : tt("afwijken")}</SubtleButton>}
-                        </div>
-                        {isOpen && (
-                          <div className="md-bewerk">
-                            <div className="md-twee">
-                              <FormField label={<FormLabel htmlFor={`cl-w-${r.id}`}>{tt("waardering")}</FormLabel>}>
-                                <Select id={`cl-w-${r.id}`} value={a?.waardering ?? r.waardering} onChange={(e) => zetAfwijking(r.id, { waardering: e.target.value as Waardering })}>
-                                  <SelectOption value="vernietigen">{tt("vernietigen")}</SelectOption>
-                                  <SelectOption value="blijvend-bewaren">{tt("bewaren")}</SelectOption>
-                                </Select>
-                              </FormField>
-                              {(a?.waardering ?? r.waardering) === "vernietigen" && (
-                                <FormField label={<FormLabel htmlFor={`cl-j-${r.id}`}>{tt("jaren")}</FormLabel>} description={r.bewaartermijn ? `Selectielijst: ${duur(r.bewaartermijn)}` : undefined}>
-                                  <Textbox
-                                    id={`cl-j-${r.id}`}
-                                    type="number"
-                                    min={0}
-                                    max={200}
-                                    value={/^P(\d+)Y$/.exec(a?.bewaartermijn ?? "")?.[1] ?? ""}
-                                    onChange={(e) => zetAfwijking(r.id, { bewaartermijn: e.target.value === "" ? undefined : `P${Math.max(0, Math.round(Number(e.target.value)))}Y` })}
-                                  />
-                                </FormField>
+              <li key={tk.procestype.nummer} role="treeitem" aria-expanded={open} className="cl-tak">
+                <div className="cl-tak-kop">
+                  <Klapper open={open} wissel={() => klap(`p${tk.procestype.nummer}`)} label={tk.procestype.naam} />
+                  <label className="cl-vink"><Vinkje aan={aan === ids.length} half={aan > 0 && aan < ids.length} disabled={!kan} zet={(x) => zetUit(ids, !x)} label={`${tk.procestype.nummer}. ${tk.procestype.naam}: ${tt("allesKiesbaar")}`} /></label>
+                  <button type="button" className="cl-tak-naam" onClick={() => klap(`p${tk.procestype.nummer}`)}>
+                    <b>{tk.procestype.nummer}. {tk.procestype.naam}</b> <span className="ab-klein">({aan} {tt("vanKiesbaar")} {ids.length})</span>
+                  </button>
+                </div>
+                {open && (
+                  <>
+                    <p className="ab-klein cl-tak-uitleg">{tk.procestype.omschrijving}{tk.procestype.procesobject ? ` · Procesobject: ${tk.procestype.procesobject}` : ""}</p>
+                    <ul className="cl-resultaten" role="group">
+                      {zichtbareGroepen.map((g) => {
+                        const gIds = [...(g.zelf ? [g.zelf.id] : []), ...g.uitwerkingen.map((r) => r.id)];
+                        const gAan = gIds.filter((i) => !uit.has(i)).length;
+                        const gOpen = !!q || uitgeklapt.has(`g${g.id}`);
+                        const heeftKinderen = g.uitwerkingen.length > 0;
+                        const groepVink = heeftKinderen ? { aan: gAan === gIds.length, half: gAan > 0 && gAan < gIds.length, ids: gIds } : undefined;
+                        const klapKnop = heeftKinderen ? <Klapper open={gOpen} wissel={() => klap(`g${g.id}`)} label={`${g.id} ${g.naam}`} /> : undefined;
+                        const tel = heeftKinderen ? <span className="ab-klein"> · {g.uitwerkingen.length} {g.uitwerkingen.length === 1 ? tt("uitwerking") : tt("uitwerkingen")}</span> : null;
+                        return (
+                          <Fragment key={g.id}>
+                            {g.zelf
+                              ? rij(g.zelf, { kop: klapKnop, vink: groepVink, extra: tel })
+                              : (
+                                <li className={`cl-resultaat cl-groep-zonder${gAan ? "" : " uit"}`}>
+                                  <div className="cl-regel">
+                                    {klapKnop}
+                                    <label className="cl-vink"><Vinkje aan={gAan === gIds.length} half={gAan > 0 && gAan < gIds.length} disabled={!kan} zet={(x) => zetUit(gIds, !x)} label={`${g.id} ${tt("allesKiesbaar")}`} /></label>
+                                    <div className="cl-naam"><span><b>{g.id}</b> {g.naam}{tel}</span><span className="ab-klein">{tt("groepZelfUit")}</span></div>
+                                  </div>
+                                </li>
                               )}
-                            </div>
-                            <FormField label={<FormLabel htmlFor={`cl-r-${r.id}`}>{tt("reden")}</FormLabel>}>
-                              <Textarea id={`cl-r-${r.id}`} rows={2} maxLength={1000} value={a?.reden ?? ""} onChange={(e) => zetAfwijking(r.id, { reden: e.target.value })} />
-                            </FormField>
-                            {a && <div><SubtleButton onClick={() => { zetAfwijking(r.id, null); zetOpen(null); }}>{tt("weg")}</SubtleButton></div>}
-                          </div>
-                        )}
-                        {(problemen ?? []).filter((p) => p.sleutel === r.id).map((p, i) => <p key={i} className={`md-probleem ${p.ernst}`}>{p.melding}</p>)}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </details>
+                            {heeftKinderen && gOpen && g.uitwerkingen.filter(zichtbaar).map((r) => rij(r, { diep: true }))}
+                          </Fragment>
+                        );
+                      })}
+                    </ul>
+                  </>
+                )}
+              </li>
             );
           })}
-        </div>
+        </ul>
       </section>
 
       {/* 4. Eigen attributen */}
@@ -621,26 +675,64 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
 
 /**
  * Wat de medewerker in het paneel van de Office Assistent ziet bij
- * Classificeren, met dit model: de voorstellen van de assistent, de gekozen
- * klasse met de bewaartermijn (met de afwijkingen van de gemeente), de eigen
- * attributen en wanneer het stuk vergrendeld wordt. Klik op een klasse om
- * haar te zien als gekozen.
+ * Classificeren, met dit model: de voorstellen van de assistent bij een
+ * voorbeeldtekst, zoeken, en kiezen in stappen (procestype, resultaat,
+ * uitwerking), zoals in oa-paneel. Daarna de gekozen klasse met de
+ * bewaartermijn (met de afwijkingen van de gemeente), de eigen attributen en
+ * wanneer het stuk vergrendeld wordt.
  */
+type PvKlasse = Resultaat & { eigen: boolean };
+
+const VOORBEELDTEKST = "Besluit op de aanvraag omgevingsvergunning voor het kappen van twee bomen aan de Kleverparkweg, met herplantplicht.";
+
 function Voorbeeld({ config, lijst, versie }: { config: Config; lijst: Selectielijst; versie: string }) {
-  const uit = new Set(config.uitgezet ?? []);
-  const afw = new Map((config.afwijkingen ?? []).map((a) => [a.resultaat, a]));
-  const pt = new Map(lijst.procestypen.map((p) => [p.nummer, p]));
-  const metAfwijking = (r: Resultaat): Resultaat & { eigen: boolean } => {
-    const a = afw.get(r.id);
-    return a ? { ...r, waardering: a.waardering ?? r.waardering, bewaartermijn: a.waardering === "blijvend-bewaren" ? undefined : (a.bewaartermijn ?? r.bewaartermijn), eigen: true } : { ...r, eigen: false };
-  };
-  const beschikbaar = lijst.resultaten.filter((r) => !uit.has(r.id));
-  // Drie voorbeelden: eerst klassen met een eigen termijn (daar zie je het verschil), dan de eerste die aan staan.
-  const voorbeelden = [...beschikbaar.filter((r) => afw.has(r.id)), ...beschikbaar.filter((r) => !afw.has(r.id))].slice(0, 3).map(metAfwijking);
-  const [keuze, zetKeuze] = useState<string | null>(null);
-  const gekozen = voorbeelden.find((r) => r.id === keuze) ?? voorbeelden[0];
   const en = taal() === "en";
+  const afw = useMemo(() => new Map((config.afwijkingen ?? []).map((a) => [a.resultaat, a])), [config.afwijkingen]);
+  // Wat de medewerker kan kiezen: aan staan, met de termijn van de gemeente.
+  const beschikbaar = useMemo<PvKlasse[]>(() => {
+    const uit = new Set(config.uitgezet ?? []);
+    return lijst.resultaten.filter((r) => !uit.has(r.id)).map((r) => {
+      const a = afw.get(r.id);
+      return a ? { ...r, waardering: a.waardering ?? r.waardering, bewaartermijn: (a.waardering ?? r.waardering) === "blijvend-bewaren" ? undefined : (a.bewaartermijn ?? r.bewaartermijn), eigen: true } : { ...r, eigen: false };
+    });
+  }, [lijst, config.uitgezet, afw]);
+  const takken = useMemo(() => boom(beschikbaar, lijst.procestypen), [beschikbaar, lijst]);
+  const pt = useMemo(() => new Map(lijst.procestypen.map((p) => [p.nummer, p])), [lijst]);
+  const [tekst, zetTekst] = useState(VOORBEELDTEKST);
+  const voorstellen = useMemo(() => suggesties(tekst, beschikbaar, lijst.procestypen), [tekst, beschikbaar, lijst]);
+  const [vraag, zetVraag] = useState("");
+  const gevonden = useMemo(() => zoek(beschikbaar, lijst.procestypen, vraag), [beschikbaar, lijst, vraag]);
+  const [pad, zetPad] = useState<{ procestype: number | null; groep: string | null }>({ procestype: null, groep: null });
+  const [keuze, zetKeuze] = useState<string | null>(null);
+  const gekozen = beschikbaar.find((r) => r.id === keuze) ?? null;
+  const kies = (r: PvKlasse) => {
+    zetKeuze(r.id);
+    if (vraag) {
+      zetPad({ procestype: r.procestype, groep: r.generiek ?? (beschikbaar.some((x) => x.generiek === r.id) ? r.id : null) });
+      zetVraag("");
+    }
+  };
+  const tak = takken.find((t) => t.procestype.nummer === pad.procestype);
+  const groep = tak?.groepen.find((g) => g.id === pad.groep);
   const procesobject = gekozen && pt.get(gekozen.procestype)?.procesobject;
+
+  const klasse = (r: PvKlasse, onder?: string) => (
+    <li key={r.id}>
+      <button type="button" className={r.id === keuze ? "gekozen" : ""} aria-pressed={r.id === keuze} onClick={() => kies(r)}>
+        <span><b>{r.id}</b> {r.naam}{r.omschrijving ? ` · ${r.omschrijving}` : ""}</span>
+        <span className="cl-pv-klein">{pt.get(r.procestype)?.naam} · {termijn(r)}{r.eigen ? (en ? " (own term)" : " (eigen termijn)") : ""}</span>
+        {onder && <span className="cl-pv-klein cl-pv-waarom">{onder}</span>}
+      </button>
+    </li>
+  );
+  const stap = (sleutel: string, kop: ReactNode, onder: string, ga: () => void) => (
+    <li key={sleutel}>
+      <button type="button" className="cl-pv-stap" onClick={ga}>
+        <span>{kop}</span>
+        <span className="cl-pv-klein">{onder}</span>
+      </button>
+    </li>
+  );
 
   const bewaren = !gekozen
     ? ""
@@ -653,61 +745,83 @@ function Voorbeeld({ config, lijst, versie }: { config: Config; lijst: Selectiel
         }`;
 
   return (
-    <div className="md-paneel cl-paneel">
-      <div className="md-paneel-kop">{en ? "Classify" : "Classificeren"}</div>
-      <div className="md-paneel-sub">{en ? "Where it belongs, and how long we keep it" : "Waar het hoort, en hoe lang we het bewaren"}</div>
-      <div className="md-paneel-model">{config.naam?.trim() || lijst.naam} · {versie}</div>
-      {beschikbaar.length === 0 ? (
-        <p className="md-paneel-hulp">{en ? "No classes are switched on: the user cannot classify." : "Er staan geen klassen aan: de medewerker kan niet classificeren."}</p>
-      ) : (
-        <>
-          <div className="cl-pv-kop">{en ? "Suggested by the assistant" : "Voorstel van de assistent"}</div>
-          <ul className="cl-pv-klassen">
-            {voorbeelden.map((r) => (
-              <li key={r.id}>
-                <button type="button" className={r.id === gekozen?.id ? "gekozen" : ""} aria-pressed={r.id === gekozen?.id} onClick={() => zetKeuze(r.id)}>
-                  <span><b>{r.id}</b> {r.naam}{r.omschrijving ? ` · ${r.omschrijving}` : ""}</span>
-                  <span className="cl-pv-klein">{pt.get(r.procestype)?.naam} · {termijn(r)}{r.eigen ? (en ? " (own term)" : " (eigen termijn)") : ""}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <div className="md-paneel-veld">
-            <div className="md-paneel-label">{en ? "Search the retention schedule" : "Zoek in de selectielijst"}</div>
-            <div className="md-paneel-invoer">{en ? `${beschikbaar.length} classes to choose from` : `${beschikbaar.length} klassen om uit te kiezen`}</div>
-          </div>
-          {gekozen && (
-            <div className="cl-pv-gekozen">
-              <div className="cl-pv-titel">{gekozen.id} {gekozen.naam}</div>
-              <div className="md-paneel-hulp">{gekozen.procestype}. {pt.get(gekozen.procestype)?.naam}{gekozen.omschrijving ? ` · ${gekozen.omschrijving}` : ""}</div>
-              <span className={`cl-pv-badge${gekozen.waardering === "blijvend-bewaren" ? " bewaren" : ""}`}>{termijn(gekozen)}</span>
-              {gekozen.eigen && <div className="md-paneel-hulp">{en ? "Deviation from the schedule" : "Afwijking van de selectielijst"}: {afw.get(gekozen.id)?.reden || "—"}</div>}
-              {gekozen.waardering === "vernietigen" && gekozen.procestermijn !== "nihil" && (
-                <div className="md-paneel-veld">
-                  <div className="md-paneel-label">{gekozen.procestermijn === "vervaldatum" ? (en ? "Expiry date" : "Vervaldatum") : (en ? "End date of the process object" : "Einddatum van het procesobject")}</div>
-                  <div className="md-paneel-invoer datum">dd-mm-jjjj</div>
-                </div>
-              )}
-              {config.attributen.map((a) => (
-                <div key={a.sleutel} className="md-paneel-veld">
-                  <div className="md-paneel-label">{a.label || a.sleutel}{a.verplicht ? (en ? " (required)" : " (verplicht)") : ""}</div>
-                  {a.beschrijving && <div className="md-paneel-hulp">{a.beschrijving}</div>}
-                  {a.type === "tekst" ? <div className="md-paneel-invoer" /> : <div className="md-paneel-invoer keuze">{en ? "Choose…" : "Kies…"}</div>}
-                </div>
-              ))}
-              <p className="cl-pv-bewaren">{bewaren}</p>
-              {config.vergrendelBij.length > 0 && (
-                <p className="md-paneel-hulp">🔒 {en ? "Locked once the status is" : "Vergrendeld zodra de status"} {config.vergrendelBij.map((x) => `‘${x}’`).join(en ? " or " : " of ")}{en ? "." : " is."}</p>
-              )}
-              <div className="md-paneel-knop">{en ? "Record classification" : "Classificatie vastleggen"}</div>
-            </div>
-          )}
-          <p className="md-paneel-hulp cl-pv-voet">
-            {en ? "The retention period comes from the" : "De bewaartermijn komt uit de"} {lijst.naam}{(config.afwijkingen?.length ?? 0) > 0 ? (en ? ", with your municipality's deviations." : ", met de afwijkingen van je gemeente.") : "."}
-          </p>
-        </>
-      )}
-    </div>
+    <>
+      <FormField label={<FormLabel htmlFor="cl-pv-tekst">{tt("voorbeeldTekst")}</FormLabel>} description={tt("voorbeeldTekstUitleg")}>
+        <Textarea id="cl-pv-tekst" rows={3} value={tekst} onChange={(e) => zetTekst(e.target.value)} />
+      </FormField>
+      <div className="md-paneel cl-paneel">
+        <div className="md-paneel-kop">{en ? "Classify" : "Classificeren"}</div>
+        <div className="md-paneel-sub">{en ? "Where it belongs, and how long we keep it" : "Waar het hoort, en hoe lang we het bewaren"}</div>
+        <div className="md-paneel-model">{config.naam?.trim() || lijst.naam} · {versie}</div>
+        {beschikbaar.length === 0 ? (
+          <p className="md-paneel-hulp">{en ? "No classes are switched on: the user cannot classify." : "Er staan geen klassen aan: de medewerker kan niet classificeren."}</p>
+        ) : (
+          <>
+            <div className="cl-pv-kop">{en ? "Suggested by the assistant" : "Voorstel van de assistent"}</div>
+            {voorstellen.length ? (
+              <ul className="cl-pv-klassen">{voorstellen.map((v) => klasse(v.resultaat, `${en ? "Based on" : "Op grond van"}: ${v.woorden.join(", ")}`))}</ul>
+            ) : (
+              <p className="md-paneel-hulp">{en ? "No suggestion: no words that fit a class. Search or choose below." : "Geen voorstel: de assistent vond geen woorden die bij een klasse passen. Zoek of kies hieronder."}</p>
+            )}
+
+            <div className="cl-pv-kop">{en ? "Choose yourself" : "Zelf kiezen"}</div>
+            <label className="md-paneel-label" htmlFor="cl-pv-zoek">{en ? "Search the retention schedule" : "Zoek in de selectielijst"}</label>
+            <input id="cl-pv-zoek" type="search" className="cl-pv-zoek" value={vraag} placeholder={en ? "12.2 or: permit felling" : "12.2 of: vergunning kappen"} onChange={(e) => zetVraag(e.target.value)} autoComplete="off" />
+            {vraag ? (
+              gevonden.length ? <ul className="cl-pv-klassen">{gevonden.slice(0, 12).map((r) => klasse(r, `${r.procestype}. ${pt.get(r.procestype)?.naam ?? ""}`))}</ul> : <p className="md-paneel-hulp">{en ? "Nothing found." : "Niets gevonden."}</p>
+            ) : (
+              <>
+                <nav className="cl-pv-kruimel" aria-label={en ? "Where you are" : "Waar je bent"}>
+                  <button type="button" disabled={!tak} onClick={() => zetPad({ procestype: null, groep: null })}>{en ? "All process types" : "Alle procestypen"}</button>
+                  {tak && <>› <button type="button" disabled={!groep} onClick={() => zetPad({ procestype: tak.procestype.nummer, groep: null })}>{tak.procestype.nummer}. {tak.procestype.naam}</button></>}
+                  {groep && <>› <b>{groep.id} {groep.naam}</b></>}
+                </nav>
+                <ul className="cl-pv-klassen cl-pv-lijst">
+                  {!tak
+                    ? takken.map((t) => stap(`p${t.procestype.nummer}`, <><b>{t.procestype.nummer}.</b> {t.procestype.naam}</>, `${t.aantal} ${t.aantal === 1 ? (en ? "class" : "klasse") : (en ? "classes" : "klassen")}`, () => zetPad({ procestype: t.procestype.nummer, groep: null })))
+                    : !groep
+                      ? tak.groepen.map((g) =>
+                          g.uitwerkingen.length === 0 && g.zelf
+                            ? klasse(g.zelf)
+                            : stap(`g${g.id}`, <><b>{g.id}</b> {g.naam}{g.omschrijving ? ` · ${g.omschrijving}` : ""}</>, `${g.uitwerkingen.length} ${g.uitwerkingen.length === 1 ? (en ? "refinement" : "uitwerking") : (en ? "refinements" : "uitwerkingen")}${g.zelf ? (en ? " and the result in general" : " en het resultaat in het algemeen") : ""}`, () => zetPad({ procestype: tak.procestype.nummer, groep: g.id })))
+                      : [...(groep.zelf ? [klasse(groep.zelf, en ? "In general: if no refinement below fits" : "In het algemeen: als geen uitwerking hieronder past")] : []), ...groep.uitwerkingen.map((r) => klasse(r))]}
+                </ul>
+              </>
+            )}
+
+            {gekozen && (
+              <div className="cl-pv-gekozen">
+                <div className="cl-pv-titel">{gekozen.id} {gekozen.naam}</div>
+                <div className="md-paneel-hulp">{gekozen.procestype}. {pt.get(gekozen.procestype)?.naam}{gekozen.omschrijving ? ` · ${gekozen.omschrijving}` : ""}</div>
+                <span className={`cl-pv-badge${gekozen.waardering === "blijvend-bewaren" ? " bewaren" : ""}`}>{termijn(gekozen)}</span>
+                {gekozen.eigen && <div className="md-paneel-hulp">{en ? "Deviation from the schedule" : "Afwijking van de selectielijst"}: {afw.get(gekozen.id)?.reden || "—"}</div>}
+                {gekozen.waardering === "vernietigen" && gekozen.procestermijn !== "nihil" && (
+                  <div className="md-paneel-veld">
+                    <div className="md-paneel-label">{gekozen.procestermijn === "vervaldatum" ? (en ? "Expiry date" : "Vervaldatum") : (en ? "End date of the process object" : "Einddatum van het procesobject")}</div>
+                    <div className="md-paneel-invoer datum">dd-mm-jjjj</div>
+                  </div>
+                )}
+                {config.attributen.map((a) => (
+                  <div key={a.sleutel} className="md-paneel-veld">
+                    <div className="md-paneel-label">{a.label || a.sleutel}{a.verplicht ? (en ? " (required)" : " (verplicht)") : ""}</div>
+                    {a.beschrijving && <div className="md-paneel-hulp">{a.beschrijving}</div>}
+                    {a.type === "tekst" ? <div className="md-paneel-invoer" /> : <div className="md-paneel-invoer keuze">{en ? "Choose…" : "Kies…"}</div>}
+                  </div>
+                ))}
+                <p className="cl-pv-bewaren">{bewaren}</p>
+                {config.vergrendelBij.length > 0 && (
+                  <p className="md-paneel-hulp">🔒 {en ? "Locked once the status is" : "Vergrendeld zodra de status"} {config.vergrendelBij.map((x) => `‘${x}’`).join(en ? " or " : " of ")}{en ? "." : " is."}</p>
+                )}
+                <div className="md-paneel-knop">{en ? "Record classification" : "Classificatie vastleggen"}</div>
+              </div>
+            )}
+            <p className="md-paneel-hulp cl-pv-voet">
+              {en ? "The retention period comes from the" : "De bewaartermijn komt uit de"} {lijst.naam}{(config.afwijkingen?.length ?? 0) > 0 ? (en ? ", with your municipality's deviations." : ", met de afwijkingen van je gemeente.") : "."}
+            </p>
+          </>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -778,4 +892,16 @@ function NieuwAttribuut({ bestaand, voegToe }: { bestaand: Set<string>; voegToe:
       </div>
     </div>
   );
+}
+
+/** Een vinkje dat ook "deels" kan tonen (een groep waarvan een deel kiesbaar is). */
+function Vinkje({ aan, half, disabled, zet, label }: { aan: boolean; half: boolean; disabled: boolean; zet: (aan: boolean) => void; label: string }) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (ref.current) ref.current.indeterminate = half; }, [half]);
+  return <Checkbox ref={ref} checked={aan} disabled={disabled} aria-checked={half ? "mixed" : aan} aria-label={label} onChange={(e) => zet(half ? true : e.target.checked)} />;
+}
+
+/** Het pijltje om een tak van de boom open of dicht te klappen. */
+function Klapper({ open, wissel, label }: { open: boolean; wissel: () => void; label: string }) {
+  return <button type="button" className={`cl-klapper${open ? " open" : ""}`} aria-expanded={open} aria-label={`${label} ${open ? "inklappen" : "uitklappen"}`} onClick={wissel} />;
 }

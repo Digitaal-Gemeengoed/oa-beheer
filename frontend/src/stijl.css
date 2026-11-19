@@ -591,3 +591,31 @@ a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rg
 .cl-pv-voet { margin-top: 10px; border-top: 1px solid #ddd; padding-top: 6px; }
 .ab-gepland-wijzigen { display: flex; flex-direction: column; gap: 4px; margin: 8px 0 12px; }
 .ab-gepland-wijzigen .ab-ruimte { margin-top: 0; }
+
+/* Klassen als boom in de bewerker */
+.cl-boom-knoppen { margin: 4px 0 8px; }
+.cl-boom { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cl-tak { border: 1px solid var(--ab-rand); border-radius: var(--ab-hoek); background: var(--ab-kaart); padding: 4px 12px; }
+.cl-tak-kop { display: grid; grid-template-columns: 24px auto minmax(0, 1fr); gap: 8px; align-items: center; padding: 4px 0; }
+.cl-tak-naam { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: start; cursor: pointer; }
+.cl-tak-uitleg { margin: 0 0 4px 32px; }
+.cl-tak .cl-resultaten { margin: 4px 0 6px; }
+.cl-tak .cl-regel { grid-template-columns: 24px auto minmax(0, 1fr) auto; }
+.cl-resultaat.diep .cl-regel { padding-left: 32px; }
+.cl-boom-ruimte { width: 24px; }
+.cl-klapper { width: 24px; height: 24px; border: 0; background: none; cursor: pointer; border-radius: 4px; position: relative; padding: 0; }
+.cl-klapper::before { content: ""; position: absolute; left: 8px; top: 7px; width: 7px; height: 7px; border-right: 2px solid var(--ab-grijs); border-bottom: 2px solid var(--ab-grijs); transform: rotate(-45deg); transition: transform .15s; }
+.cl-klapper.open::before { transform: rotate(45deg); left: 8px; top: 5px; }
+.cl-klapper:hover { background: var(--ab-blauw-zacht); }
+.cl-klapper:focus-visible { outline: 2px solid var(--ab-blauw); }
+.cl-groep-zonder .cl-naam { color: var(--ab-grijs); }
+
+/* Kiezen in stappen in het voorbeeld */
+.cl-pv-zoek { width: 100%; box-sizing: border-box; border: 1px solid #1d1d1b; border-radius: 2px; min-height: 30px; padding: 5px 8px; font: inherit; margin: 2px 0 8px; }
+.cl-pv-kruimel { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 0.78rem; margin-bottom: 6px; }
+.cl-pv-kruimel button { background: none; border: 0; padding: 0; font: inherit; color: #1a5ea8; text-decoration: underline; cursor: pointer; }
+.cl-pv-kruimel button:disabled { color: inherit; text-decoration: none; font-weight: 600; cursor: default; }
+.cl-pv-lijst { max-height: 320px; overflow: auto; }
+.cl-pv-klassen button.cl-pv-stap { background: #f7f8fa; position: relative; padding-right: 22px; }
+.cl-pv-klassen button.cl-pv-stap::after { content: "›"; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; color: #666; }
+.cl-pv-waarom { font-style: italic; }
