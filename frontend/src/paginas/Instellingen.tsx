@@ -23,6 +23,18 @@ export function Instellingen({ ik }: { ik: Ik }) {
   const kan = ik.rechten.includes("settings.manage");
   const [open, zetOpen] = useState<string | null>(null);
   const [m, zetM] = useState<Melding>(null);
+  // Niet-opgeslagen invoer in de open regel; en waar de gebruiker heen wil als die er is (null = dichtklappen).
+  const [vuil, zetVuil] = useState(false);
+  const [wacht, zetWacht] = useState<{ naar: string | null } | null>(null);
+  const ga = (naar: string | null) => { zetM(null); zetWacht(null); zetVuil(false); zetOpen(naar); };
+  const wil = (naar: string | null) => (vuil && open !== null ? zetWacht({ naar }) : ga(naar));
+  // Ook bij het verlaten of verversen van de pagina.
+  useEffect(() => {
+    if (!vuil) return;
+    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", h);
+    return () => window.removeEventListener("beforeunload", h);
+  }, [vuil]);
   const alle = lijst.data ?? [];
   const groep = (s: string) => GROEPEN.find((g) => g.voorvoegsels.includes(s.split(".")[0]))?.id ?? "groepOverig";
   const groepen = [...GROEPEN.map((g) => g.id), "groepOverig" as const]
@@ -44,8 +56,11 @@ export function Instellingen({ ik }: { ik: Ik }) {
                 i={i}
                 kan={kan}
                 open={open === i.sleutel}
-                wissel={() => { zetM(null); zetOpen(open === i.sleutel ? null : i.sleutel); }}
-                klaar={() => { zetOpen(null); zetM({ soort: "ok", tekst: `${t("opgeslagen")} ${i.omschrijving[taal()]}` }); lijst.herlaad(); }}
+                wissel={() => wil(open === i.sleutel ? null : i.sleutel)}
+                annuleer={() => ga(null)}
+                vuil={zetVuil}
+                waarschuwing={open === i.sleutel && wacht ? { verwerp: () => ga(wacht.naar), blijf: () => zetWacht(null) } : null}
+                klaar={() => { ga(null); zetM({ soort: "ok", tekst: `${t("opgeslagen")} ${i.omschrijving[taal()]}` }); lijst.herlaad(); }}
               />
             ))}
           </ul>
@@ -76,7 +91,11 @@ function leesbaar(i: Instelling, w: unknown): string {
 
 const zelfde = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
-function Regel({ i, kan, open, wissel, klaar }: { i: Instelling; kan: boolean; open: boolean; wissel: () => void; klaar: () => void }) {
+interface Waarschuwing { verwerp: () => void; blijf: () => void }
+
+function Regel({ i, kan, open, wissel, annuleer, vuil, waarschuwing, klaar }: {
+  i: Instelling; kan: boolean; open: boolean; wissel: () => void; annuleer: () => void; vuil: (v: boolean) => void; waarschuwing: Waarschuwing | null; klaar: () => void;
+}) {
   const id = `i-${i.sleutel.replace(/\W/g, "-")}`;
   const aangepast = !zelfde(i.waarde, i.standaard);
   return (
@@ -93,12 +112,14 @@ function Regel({ i, kan, open, wissel, klaar }: { i: Instelling; kan: boolean; o
         <span className="ab-instelling-tijd ab-klein">{i.gewijzigd ? tijd(i.gewijzigd) : "—"}</span>
         <span className="ab-instelling-pijl" aria-hidden="true" />
       </button>
-      {open && <Paneel id={id} i={i} kan={kan} sluit={wissel} klaar={klaar} />}
+      {open && <Paneel id={id} i={i} kan={kan} sluit={wissel} annuleer={annuleer} vuil={vuil} waarschuwing={waarschuwing} klaar={klaar} />}
     </li>
   );
 }
 
-function Paneel({ id, i, kan, sluit, klaar }: { id: string; i: Instelling; kan: boolean; sluit: () => void; klaar: () => void }) {
+function Paneel({ id, i, kan, sluit, annuleer, vuil, waarschuwing, klaar }: {
+  id: string; i: Instelling; kan: boolean; sluit: () => void; annuleer: () => void; vuil: (v: boolean) => void; waarschuwing: Waarschuwing | null; klaar: () => void;
+}) {
   const [waarde, zet] = useState(naarTekst(i, i.waarde));
   const [reden, zetReden] = useState("");
   const [bezig, zetBezig] = useState(false);
@@ -109,6 +130,14 @@ function Paneel({ id, i, kan, sluit, klaar }: { id: string; i: Instelling; kan: 
   const naarWaarde = (s: string): unknown =>
     i.type === "geheel" ? Number(s) : i.type === "boolean" ? s === "true" : i.type === "lijst" ? s.split("\n").map((x) => x.trim()).filter(Boolean) : s;
   const gewijzigd = !zelfde(naarWaarde(waarde), i.waarde);
+  const nietOpgeslagen = kan && (gewijzigd || reden.trim() !== "");
+  useEffect(() => vuil(nietOpgeslagen), [nietOpgeslagen, vuil]);
+  const melding = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!waarschuwing) return;
+    melding.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    melding.current?.querySelector<HTMLElement>("button")?.focus();
+  }, [waarschuwing]);
   const opslaan = async () => {
     zetBezig(true);
     zetM(null);
@@ -129,8 +158,17 @@ function Paneel({ id, i, kan, sluit, klaar }: { id: string; i: Instelling; kan: 
       id={`${id}-paneel`}
       className="ab-instelling-paneel"
       onSubmit={(e) => { e.preventDefault(); void opslaan(); }}
-      onKeyDown={(e) => { if (e.key === "Escape") sluit(); }}
+      onKeyDown={(e) => { if (e.key === "Escape") (waarschuwing ? waarschuwing.blijf() : sluit()); }}
     >
+      {waarschuwing && (
+        <div ref={melding} className="ab-onopgeslagen" role="alertdialog" aria-labelledby={`${id}-waarschuwing`}>
+          <p id={`${id}-waarschuwing`}><b>{t("nietOpgeslagen")}</b> {t("nietOpgeslagenUitleg")}</p>
+          <div className="ab-knoppen">
+            <SecondaryActionButton type="button" onClick={waarschuwing.blijf}>{t("verderBewerken")}</SecondaryActionButton>
+            <button type="button" className="ab-linkknop ab-rood" onClick={waarschuwing.verwerp}>{t("wijzigingWeggooien")}</button>
+          </div>
+        </div>
+      )}
       <MeldingVak m={m} />
       <div className="ab-instelling-velden">
         <div ref={veld}>
@@ -159,7 +197,7 @@ function Paneel({ id, i, kan, sluit, klaar }: { id: string; i: Instelling; kan: 
         {kan && (
           <PrimaryActionButton type="submit" disabled={bezig || !gewijzigd || reden.trim().length < 5}>{t("opslaan")}</PrimaryActionButton>
         )}
-        <SecondaryActionButton type="button" onClick={sluit}>{t(kan ? "annuleren" : "sluiten")}</SecondaryActionButton>
+        <SecondaryActionButton type="button" onClick={annuleer}>{t(kan ? "annuleren" : "sluiten")}</SecondaryActionButton>
         {kan && !gewijzigd && <span className="ab-klein ab-grijs">{t("nogNietsGewijzigd")}</span>}
       </div>
     </form>

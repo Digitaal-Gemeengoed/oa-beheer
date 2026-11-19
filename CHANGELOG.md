@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## 0.10.2 — 2026-11-19
+
+**Instellingen: waarschuwing bij niet-opgeslagen invoer.**
+
+- Heb je een instelling gewijzigd of een reden ingevuld en klik je op een andere regel (of op de open regel zelf, of Escape), dan klapt hij niet weg. In de open regel verschijnt *Niet opgeslagen* met *Verder bewerken* of *Wijziging weggooien*; pas na weggooien gaat de andere regel open.
+- *Annuleren* blijft bewust weggooien, zonder extra vraag.
+- Ook bij verversen of de pagina sluiten vraagt de browser eerst of je zeker weet dat je weg wilt.
+
 ## 0.10.1 — 2026-11-19
 
 **Instellingen als compacte lijst.**

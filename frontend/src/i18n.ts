@@ -113,6 +113,9 @@ const T = {
   minuten: ["minuten", "minutes"],
   dagen: ["dagen", "days"],
   sluiten: ["Sluiten", "Close"],
+  nietOpgeslagen: ["Niet opgeslagen.", "Not saved."],
+  nietOpgeslagenUitleg: ["Je hebt deze instelling gewijzigd of een reden ingevuld. Sla eerst op, of gooi je wijziging weg.", "You changed this setting or entered a reason. Save first, or discard your change."],
+  wijzigingWeggooien: ["Wijziging weggooien", "Discard change"],
   // Overzicht
   goedemorgen: ["Goedemorgen", "Good morning"],
   goedemiddag: ["Goedemiddag", "Good afternoon"],

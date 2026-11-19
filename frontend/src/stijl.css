@@ -571,3 +571,7 @@ a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rg
   .ab-instelling-pijl { grid-column: 3; grid-row: 1 / span 2; }
   .ab-instelling-velden { grid-template-columns: 1fr; }
 }
+.ab-onopgeslagen { display: flex; justify-content: space-between; align-items: center; gap: 8px 16px; flex-wrap: wrap; padding: 10px 14px; background: var(--ab-oranje-licht); border: 1px solid #f1d29c; border-radius: var(--ab-hoek); }
+.ab-onopgeslagen p { margin: 0; }
+.ab-rood { color: var(--ab-rood); }
+.ab-linkknop.ab-rood:hover { color: #9f2a21; }
