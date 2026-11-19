@@ -41,7 +41,8 @@ export class Platform {
       if (r.status === 404 && !j.fout) {
         throw new AppFout(502, "platform-te-oud", `Het platform kent deze functie nog niet (${methode} ${pad}). Werk het platform bij: bijwerken.sh op de server van het platform (VPS 2).`);
       }
-      throw new AppFout(r.status === 422 ? 422 : 502, j.fout ?? "platform-fout", j.melding ?? `Het platform gaf fout ${r.status}.`, j.details);
+      // Een weigering met uitleg (ongeldig, of in strijd met een planning) geven we door; de rest is een platformfout.
+      throw new AppFout([400, 409, 422].includes(r.status) && j.fout ? r.status : 502, j.fout ?? "platform-fout", j.melding ?? `Het platform gaf fout ${r.status}.`, j.details);
     }
     return j;
   }

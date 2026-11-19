@@ -1,5 +1,16 @@
 # Wijzigingen
 
+## 0.10.0 — 2026-11-19
+
+**Ingangsdatum voor een nieuwe modelversie** bij Metadatamodel en Classificatiemodel. Vereist opendop-mini 0.12.0 op VPS 2.
+
+- Bij publiceren staat een veld **Ingangsdatum**. Leeg: de versie geldt meteen. Met een datum en tijd wordt de knop *Plannen*; de versie gaat dan vanzelf in, en tot die tijd blijft de huidige versie gelden.
+- In de versielijst heeft een geplande versie de status **Gepland** (*gaat in op …*), en staat er een melding boven de lijst: welke versie wanneer ingaat en welke tot dan geldt. Op het overzicht staat het ook bij *Modellen*.
+- Een geplande versie opent alleen lezen, met **Planning intrekken** (met reden, in de audit). Een ingetrokken versie blijft in de lijst staan, doorgestreept, met de status *Ingetrokken* en de reden.
+- Zolang er een versie gepland staat, kun je geen volgende publiceren; de bewerker legt uit waarom.
+- Een weigering van het platform met uitleg (400, 409) komt nu als die uitleg door, in plaats van als algemene platformfout.
+- Audit: `ingang` bij publiceren; nieuw `metadatamodel.ingetrokken` en `classificatiemodel.ingetrokken`.
+
 ## 0.9.0 — 2026-11-19
 
 **Versies als eigen pagina** bij Metadatamodel en Classificatiemodel.

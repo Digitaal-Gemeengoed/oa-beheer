@@ -381,6 +381,7 @@ a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rg
 .ab-ruimte { margin: 0 0 12px; }
 .ab-versies tbody tr.ab-klikbaar:hover td { background: var(--ab-blauw-zacht); }
 .ab-versies tr.ab-actief td { font-weight: 700; }
+.ab-versies tr.ab-ingetrokken td:not(:last-child) { color: var(--ab-grijs); text-decoration: line-through; text-decoration-thickness: 1px; }
 .ab-versies tr.ab-actief td .ab-klein, .ab-versies tr.ab-actief td .utrecht-status-badge { font-weight: 600; }
 .ab-versies tr.ab-conceptrij td { background: var(--ab-oranje-licht); }
 .ab-concept { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 14px; margin: 8px 0 12px; border-radius: var(--ab-hoek-groot); background: var(--ab-oranje-licht); border: 1px solid #f2d9ad; }

@@ -4,6 +4,7 @@ import { api, type Ik } from "../api";
 import { t, tijd } from "../i18n";
 import { L } from "../App";
 import { actieTekst, relatief, useLaden } from "./gedeeld";
+import { isGepland, type Intrekking } from "./Modelbeheer";
 
 interface Overzicht {
   niveau: number;
@@ -16,7 +17,7 @@ interface Overzicht {
   recent?: { id: number; tijd: string; email: string | null; actie: string; resultaat: string }[];
   actieveSessies?: number;
 }
-interface ModelStand { aan: boolean; actief?: { versie: number; titel?: string; config?: { naam?: string } | null } | null; concept?: unknown }
+interface ModelStand { aan: boolean; actief?: { versie: number; titel?: string; config?: { naam?: string } | null } | null; concept?: unknown; versies?: { versie: number; ingang?: string; ingetrokken?: Intrekking | null }[] }
 
 function groet(): string {
   const u = new Date().getHours();
@@ -67,7 +68,14 @@ export function Dashboard({ ik }: { ik: Ik }) {
   const model = (s: ModelStand | null) => {
     if (!s?.aan) return null;
     if (!s.actief) return <StatusBadge status="warning">{t("geenModel")}</StatusBadge>;
-    return <>{t("versie")} {s.actief.versie}{s.concept ? <> · <StatusBadge status="warning">{t("conceptOpen")}</StatusBadge></> : null}</>;
+    const gepland = s.versies?.find(isGepland);
+    return (
+      <>
+        {t("versie")} {s.actief.versie}
+        {s.concept ? <> · <StatusBadge status="warning">{t("conceptOpen")}</StatusBadge></> : null}
+        {gepland && <span className="ab-klein ab-blok-regel"><StatusBadge status="warning">{t("geplandKop")}</StatusBadge> {t("versie").toLowerCase()} {gepland.versie} {t("geplandOmschakeling")} {tijd(gepland.ingang)}</span>}
+      </>
+    );
   };
 
   return (

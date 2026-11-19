@@ -34,6 +34,8 @@ const nepFetch = (async (url: string | URL, init?: RequestInit) => {
     versie += 1;
     return json(201, { versie });
   }
+  const intrek = /^\/objecttypen\/document\/versies\/(\d+)\/intrekken$/.exec(pad);
+  if (intrek) return Number(intrek[1]) === versie ? json(200, { ingetrokken: versie }) : json(409, { fout: "niet-gepland", melding: "Alleen een geplande versie kun je intrekken." });
   return json(404, { fout: "niet-gevonden" });
 }) as typeof fetch;
 
@@ -134,6 +136,27 @@ test("publiceren: met reden, in de audit, concept weg; een fout van het platform
   assert.equal(fout.json().details[0].melding, "Er moet een veld voor de titel aan staan.");
   const a2 = await pool.query("SELECT resultaat FROM audit WHERE actie = 'metadatamodel.gepubliceerd' ORDER BY id");
   assert.deepEqual(a2.rows.map((x) => x.resultaat), ["ok", "ok", "geweigerd"]);
+});
+
+test("plannen en intrekken: de ingangsdatum gaat mee naar het platform; intrekken met reden, in de audit", async () => {
+  const ib = await sessie(id.ib);
+  const config = { basis: "rgbz", velden: [{ sleutel: "titel", aan: true, verplicht: true }] };
+  const ingang = "2027-01-01T00:00:00.000Z";
+  const r = await vraag(app, ib, "POST", "/api/metadatamodel/publiceer", { config, reden: "Nieuw model per januari", ingang });
+  assert.equal(r.statusCode, 200, r.body);
+  assert.equal((aanroepen.at(-1)!.lichaam as { ingang: string }).ingang, ingang);
+  const a = await pool.query("SELECT details FROM audit WHERE actie = 'metadatamodel.gepubliceerd' ORDER BY id DESC LIMIT 1");
+  assert.equal(a.rows[0].details.ingang, ingang);
+  assert.equal((await vraag(app, ib, "POST", "/api/metadatamodel/publiceer", { config, reden: "Verkeerde datum", ingang: "morgen" })).statusCode, 400);
+  const v = r.json().versie;
+  assert.equal((await vraag(app, ib, "POST", `/api/metadatamodel/versies/${v}/intrekken`, {})).statusCode, 400, "zonder reden");
+  assert.equal((await vraag(app, await sessie(id.lezer), "POST", `/api/metadatamodel/versies/${v}/intrekken`, { reden: "Toch niet doen" })).statusCode, 403);
+  assert.equal((await vraag(app, ib, "POST", `/api/metadatamodel/versies/1/intrekken`, { reden: "Oude versie weg" })).statusCode, 409);
+  const ok = await vraag(app, ib, "POST", `/api/metadatamodel/versies/${v}/intrekken`, { reden: "Toch niet doen" });
+  assert.equal(ok.statusCode, 200, ok.body);
+  const b = await pool.query("SELECT doel, resultaat FROM audit WHERE actie = 'metadatamodel.ingetrokken' ORDER BY id");
+  assert.deepEqual(b.rows.map((x) => x.resultaat), ["geweigerd", "ok"]);
+  assert.equal(b.rows[1].doel, `document versie ${v}`);
 });
 
 test("anonimiseren, kwaliteit: alleen met anonimiseren.view; de vraag gaat door naar het platform", async () => {

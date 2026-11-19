@@ -188,6 +188,24 @@ const T = {
   vorigeVersie: ["Vorige versie", "Previous version"],
   alleenLezen: ["alleen lezen", "read only"],
   alsBasisNieuw: ["Als basis voor een nieuwe versie", "Use as basis for a new version"],
+  // Ingangsdatum van een modelversie
+  ingangsdatum: ["Ingangsdatum", "Effective date"],
+  ingangsdatumUitleg: ["Leeg: de nieuwe versie geldt meteen. Met een datum en tijd gaat hij dan vanzelf in; tot die tijd blijft de huidige versie gelden voor nieuwe stukken.", "Empty: the new version applies at once. With a date and time it takes effect by itself; until then the current version keeps applying to new documents."],
+  geplandKop: ["Gepland", "Scheduled"],
+  gaatInOp: ["gaat in op", "takes effect on"],
+  ingetrokken: ["Ingetrokken", "Withdrawn"],
+  gaatNietIn: ["gaat niet in", "will not take effect"],
+  totDanGeldt: ["Tot dan geldt voor nieuwe stukken versie", "Until then new documents use version"],
+  geplandBlokkeert: ["Een volgende versie publiceren kan pas als deze is ingegaan, of als je de planning intrekt.", "You can publish a next version once this one has taken effect, or after you withdraw the schedule."],
+  geplandVersie: ["Deze versie is gepland en gaat vanzelf in op", "This version is scheduled and takes effect on"],
+  geplandVersie2: ["Tot die tijd blijft de huidige versie gelden. Wil je iets veranderen, trek de planning dan in en publiceer opnieuw.", "Until then the current version keeps applying. To change something, withdraw the schedule and publish again."],
+  ingetrokkenOp: ["Deze versie is nooit ingegaan: ingetrokken op", "This version never took effect: withdrawn on"],
+  planningIntrekken: ["Planning intrekken", "Withdraw schedule"],
+  intrekkenUitleg: ["De versie gaat dan niet in; de huidige versie blijft gelden. De ingetrokken versie blijft met je reden zichtbaar in de lijst en in de audit.", "The version will then not take effect; the current version keeps applying. The withdrawn version stays visible with your reason in the list and in the audit trail."],
+  staatGepland: ["staat gepland. Tot de ingangsdatum geldt de huidige versie.", "is scheduled. Until the effective date the current version applies."],
+  isIngetrokken: ["is ingetrokken en gaat niet in.", "has been withdrawn and will not take effect."],
+  plannen: ["Plannen", "Schedule"],
+  geplandOmschakeling: ["vanaf", "from"],
 } as const;
 
 export type Sleutel = keyof typeof T;

@@ -7,7 +7,7 @@ import { api, ApiFout, type Ik } from "../api";
 import { t, taal, tijd } from "../i18n";
 import { ga, L } from "../App";
 import { foutTekst, MeldingVak, RedenVeld, useLaden, type Melding } from "./gedeeld";
-import { Keuzekaarten, ModelOverzicht, VersieKop, type VersieRij } from "./Modelbeheer";
+import { IngangVeld, ingangVoorPlatform, isGepland, Keuzekaarten, ModelOverzicht, PlanningMelding, VersieKop, type Intrekking, type VersieRij } from "./Modelbeheer";
 
 // ---------------------------------------------------------------------------
 // Typen: zoals het platform ze geeft (oa-contract, classificatie.ts)
@@ -40,7 +40,7 @@ interface Config {
   vergrendelBij: string[];
   termijnStartBij: string;
 }
-interface Model { versie: number; config: Config; gepubliceerd: string; door: string | null }
+interface Model { versie: number; config: Config; gepubliceerd: string; door: string | null; ingang?: string; ingetrokken?: Intrekking | null }
 interface Stand {
   aan: boolean;
   gemeente?: string;
@@ -118,7 +118,7 @@ const T = {
   stap5: ["5. Controleren en publiceren", "5. Check and publish"],
   klopt: ["Het model klopt.", "The model is valid."],
   publiceren: ["Publiceren als nieuwe versie", "Publish as a new version"],
-  publiceerUitleg: ["Nieuwe classificaties gebruiken dit model meteen; vergrendelen volgt meteen het nieuwe model. Stukken houden de bewaartermijn van de versie waarmee ze zijn geclassificeerd.", "New classifications use this model straight away; locking follows the new model at once. Documents keep the retention of the version they were classified with."],
+  publiceerUitleg: ["Nieuwe classificaties gebruiken dit model zodra het ingaat: meteen, of op de ingangsdatum als je die invult. Vanaf dat moment volgt ook het vergrendelen het nieuwe model. Stukken houden de bewaartermijn van de versie waarmee ze zijn geclassificeerd.", "New classifications use this model once it takes effect: straight away, or on the effective date if you fill one in. From then on locking follows the new model too. Documents keep the retention of the version they were classified with."],
   gepubliceerd: ["Gepubliceerd als versie", "Published as version"],
   versies: ["Versies", "Versions"],
   alsBasis: ["Als begin nemen", "Use as starting point"],
@@ -191,6 +191,9 @@ function rijenVan(s: Stand): VersieRij[] {
       door: v.door,
       actief: v.versie === s.actief?.versie,
       teBekijken: true,
+      ingang: v.ingang ?? null,
+      gepland: isGepland(v),
+      ingetrokken: v.ingetrokken ?? null,
     };
   });
 }
@@ -222,8 +225,8 @@ function VersieBekijken({ ik, s, versie, herlaad }: { ik: Ik; s: Stand; versie: 
   if (basis) return <Bewerker ik={ik} s={s} herlaad={herlaad} start={basis} />;
   return (
     <>
-      <VersieKop titel={tt("titel")} pad={PAD} rij={rij} />
-      {ik.rechten.includes("classificatie.manage") && v && !rij?.actief && (
+      <VersieKop titel={tt("titel")} pad={PAD} rij={rij} herlaad={herlaad} intrekPad={ik.rechten.includes("classificatie.manage") ? `/api/classificatie/versies/${versie}/intrekken` : undefined} />
+      {ik.rechten.includes("classificatie.manage") && v && !rij?.actief && !rij?.gepland && (
         <div className="ab-knoppen ab-ruimte"><SecondaryActionButton onClick={() => zetBasis(v.config)}>{t("alsBasisNieuw")}</SecondaryActionButton></div>
       )}
       {!v && <Alert type="warning"><Paragraph>{t("versieOnbekend")}</Paragraph></Alert>}
@@ -307,6 +310,8 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
   const [config, zetConfig] = useState<Config>(start ?? vanActief);
   const [problemen, zetProblemen] = useState<Probleem[] | null>(null);
   const [reden, zetReden] = useState("");
+  const [ingang, zetIngang] = useState("");
+  const gepland = rijenVan(s).find((r) => r.gepland);
   const [m, zetM] = useState<Melding>(null);
   const [bezig, zetBezig] = useState(false);
   const [vraag, zetVraag] = useState("");
@@ -347,9 +352,10 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
     zetBezig(true);
     zetM(null);
     try {
-      const r = await api<{ versie: number }>("POST", "/api/classificatie/publiceer", { config, reden });
+      const op = ingangVoorPlatform(ingang);
+      const r = await api<{ versie: number }>("POST", "/api/classificatie/publiceer", { config, reden, ...(op ? { ingang: op } : {}) });
       zetReden("");
-      ga(`${PAD}?gepubliceerd=${r.versie}`);
+      ga(`${PAD}?${op ? "gepland" : "gepubliceerd"}=${r.versie}`);
       herlaad();
     } catch (e) {
       const details = e instanceof ApiFout ? e.details : undefined;
@@ -572,12 +578,18 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
         {kan && (
           <div className="ab-formulier">
             <Paragraph className="ab-klein">{tt("publiceerUitleg")}</Paragraph>
-            <RedenVeld id="cl-reden" waarde={reden} zet={zetReden} />
-            <div>
-              <PrimaryActionButton onClick={publiceer} disabled={bezig || !gewijzigd || fouten.length > 0 || reden.trim().length < 5}>
-                {bezig ? tt("bezig") : tt("publiceren")}
-              </PrimaryActionButton>
-            </div>
+            {gepland && <PlanningMelding gepland={gepland} actief={rijenVan(s).find((r) => r.actief) ?? null} />}
+            {!gepland && (
+              <>
+                <RedenVeld id="cl-reden" waarde={reden} zet={zetReden} />
+                <IngangVeld id="cl-ingang" waarde={ingang} zet={zetIngang} />
+                <div>
+                  <PrimaryActionButton onClick={publiceer} disabled={bezig || !gewijzigd || fouten.length > 0 || reden.trim().length < 5}>
+                    {bezig ? tt("bezig") : ingangVoorPlatform(ingang) ? t("plannen") : tt("publiceren")}
+                  </PrimaryActionButton>
+                </div>
+              </>
+            )}
           </div>
         )}
       </section>

@@ -3,6 +3,7 @@ import { AppFout } from "../app.js";
 import { schrijfAudit } from "../audit.js";
 import type { Platform } from "../platform.js";
 import { vereis } from "../toegang.js";
+import { INGANG, REDEN } from "./metadatamodel.js";
 
 /**
  * Het classificatiemodel: welke resultaten uit de selectielijst de gemeente
@@ -83,11 +84,11 @@ export async function classificatieRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  app.post<{ Body: { config: Config; reden: string } }>(
+  app.post<{ Body: { config: Config; reden: string; ingang?: string } }>(
     "/api/classificatie/publiceer",
     {
       schema: {
-        body: { type: "object", required: ["config", "reden"], additionalProperties: false, properties: { config: CONFIG, reden: { type: "string", minLength: 5, maxLength: 1000 } } },
+        body: { type: "object", required: ["config", "reden"], additionalProperties: false, properties: { config: CONFIG, reden: { type: "string", minLength: 5, maxLength: 1000 }, ingang: INGANG } },
       },
     },
     async (req) => {
@@ -104,11 +105,12 @@ export async function classificatieRoutes(app: FastifyInstance): Promise<void> {
         attributen: c.attributen.length,
         vergrendelBij: c.vergrendelBij,
         termijnStartBij: c.termijnStartBij,
+        ...(req.body.ingang ? { ingang: req.body.ingang } : {}),
         reden: req.body.reden,
       };
       let model: { versie: number };
       try {
-        model = await platform.vraag<{ versie: number }>("POST", "/classificatiemodel", p, { config: c });
+        model = await platform.vraag<{ versie: number }>("POST", "/classificatiemodel", p, { config: c, ...(req.body.ingang ? { ingang: req.body.ingang } : {}) });
       } catch (e) {
         await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "classificatiemodel.gepubliceerd", doel: "classificatiemodel", ip: req.ip, resultaat: "geweigerd", details: { ...details, fout: (e as Error).message } });
         throw e;
@@ -123,6 +125,25 @@ export async function classificatieRoutes(app: FastifyInstance): Promise<void> {
         details: { ...details, versie: model.versie },
       });
       return model;
+    },
+  );
+
+  /** Een geplande versie intrekken: die gaat dan nooit in, de huidige blijft gelden. */
+  app.post<{ Params: { versie: number }; Body: { reden: string } }>(
+    "/api/classificatie/versies/:versie/intrekken",
+    { schema: { params: { type: "object", properties: { versie: { type: "integer", minimum: 1 } } }, body: REDEN } },
+    async (req) => {
+      vereis(req, "classificatie.manage");
+      const p = req.persoon!;
+      const doel = `classificatiemodel versie ${req.params.versie}`;
+      try {
+        await platformVan(req).vraag("POST", `/classificatiemodel/versies/${req.params.versie}/intrekken`, p, { reden: req.body.reden });
+      } catch (e) {
+        await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "classificatiemodel.ingetrokken", doel, ip: req.ip, resultaat: "geweigerd", details: { reden: req.body.reden, fout: (e as Error).message } });
+        throw e;
+      }
+      await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "classificatiemodel.ingetrokken", doel, ip: req.ip, resultaat: "ok", details: { reden: req.body.reden } });
+      return { ingetrokken: req.params.versie };
     },
   );
 }

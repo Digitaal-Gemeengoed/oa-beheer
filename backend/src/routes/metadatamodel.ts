@@ -42,6 +42,10 @@ const CONFIG = {
   properties: { basis: { type: "string", maxLength: 10 }, naam: { type: "string", maxLength: 80 }, velden: { type: "array", maxItems: 200, items: { type: "object" } } },
 } as const;
 
+/** Wanneer een nieuwe versie ingaat; leeg is meteen. */
+export const INGANG = { type: "string", format: "date-time" } as const;
+export const REDEN = { type: "object", required: ["reden"], additionalProperties: false, properties: { reden: { type: "string", minLength: 5, maxLength: 1000 } } } as const;
+
 export async function metadatamodelRoutes(app: FastifyInstance): Promise<void> {
   const d = app.diensten;
 
@@ -105,11 +109,11 @@ export async function metadatamodelRoutes(app: FastifyInstance): Promise<void> {
   );
 
   /** Publiceren: een nieuwe versie van het objecttype voor deze gemeente. Altijd met reden; in de audit. */
-  app.post<{ Body: { config: { basis: string; naam?: string; velden: { aan?: boolean }[] }; reden: string } }>(
+  app.post<{ Body: { config: { basis: string; naam?: string; velden: { aan?: boolean }[] }; reden: string; ingang?: string } }>(
     "/api/metadatamodel/publiceer",
     {
       schema: {
-        body: { type: "object", required: ["config", "reden"], additionalProperties: false, properties: { config: CONFIG, reden: { type: "string", minLength: 5, maxLength: 1000 } } },
+        body: { type: "object", required: ["config", "reden"], additionalProperties: false, properties: { config: CONFIG, reden: { type: "string", minLength: 5, maxLength: 1000 }, ingang: INGANG } },
       },
     },
     async (req) => {
@@ -117,9 +121,9 @@ export async function metadatamodelRoutes(app: FastifyInstance): Promise<void> {
       const p = req.persoon!;
       let type: { versie: number };
       try {
-        type = await platformVan(req).vraag<{ versie: number }>("POST", `/objecttypen/${OBJECTTYPE}/model`, p, { config: req.body.config });
+        type = await platformVan(req).vraag<{ versie: number }>("POST", `/objecttypen/${OBJECTTYPE}/model`, p, { config: req.body.config, ...(req.body.ingang ? { ingang: req.body.ingang } : {}) });
       } catch (e) {
-        await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "metadatamodel.gepubliceerd", doel: OBJECTTYPE, ip: req.ip, resultaat: "geweigerd", details: { basis: req.body.config.basis, reden: req.body.reden, fout: (e as Error).message } });
+        await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "metadatamodel.gepubliceerd", doel: OBJECTTYPE, ip: req.ip, resultaat: "geweigerd", details: { basis: req.body.config.basis, reden: req.body.reden, ...(req.body.ingang ? { ingang: req.body.ingang } : {}), fout: (e as Error).message } });
         throw e;
       }
       await d.pool.query("DELETE FROM metadatamodel_concept WHERE objecttype = $1", [OBJECTTYPE]);
@@ -130,9 +134,28 @@ export async function metadatamodelRoutes(app: FastifyInstance): Promise<void> {
         doel: `${OBJECTTYPE} versie ${type.versie}`,
         ip: req.ip,
         resultaat: "ok",
-        details: { basis: req.body.config.basis, ...(req.body.config.naam?.trim() ? { naam: req.body.config.naam.trim() } : {}), velden: req.body.config.velden.filter((v) => v.aan).length, versie: type.versie, reden: req.body.reden },
+        details: { basis: req.body.config.basis, ...(req.body.config.naam?.trim() ? { naam: req.body.config.naam.trim() } : {}), velden: req.body.config.velden.filter((v) => v.aan).length, versie: type.versie, ...(req.body.ingang ? { ingang: req.body.ingang } : {}), reden: req.body.reden },
       });
       return type;
+    },
+  );
+
+  /** Een geplande versie intrekken: die gaat dan nooit in, de huidige blijft gelden. Altijd met reden; in de audit. */
+  app.post<{ Params: { versie: number }; Body: { reden: string } }>(
+    "/api/metadatamodel/versies/:versie/intrekken",
+    { schema: { params: { type: "object", properties: { versie: { type: "integer", minimum: 1 } } }, body: REDEN } },
+    async (req) => {
+      vereis(req, "metadata.manage");
+      const p = req.persoon!;
+      const doel = `${OBJECTTYPE} versie ${req.params.versie}`;
+      try {
+        await platformVan(req).vraag("POST", `/objecttypen/${OBJECTTYPE}/versies/${req.params.versie}/intrekken`, p, { reden: req.body.reden });
+      } catch (e) {
+        await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "metadatamodel.ingetrokken", doel, ip: req.ip, resultaat: "geweigerd", details: { reden: req.body.reden, fout: (e as Error).message } });
+        throw e;
+      }
+      await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "metadatamodel.ingetrokken", doel, ip: req.ip, resultaat: "ok", details: { reden: req.body.reden } });
+      return { ingetrokken: req.params.versie };
     },
   );
 }
