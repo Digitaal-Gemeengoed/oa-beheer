@@ -8,7 +8,7 @@
  */
 
 export interface PT { nummer: number; naam: string; omschrijving: string; procesobject: string }
-export interface Res { id: string; procestype: number; generiek: string | null; naam: string; omschrijving: string; toelichting?: string }
+export interface Res { id: string; procestype: number; generiek: string | null; naam: string; omschrijving: string; toelichting?: string; zoektermen?: string[] }
 
 export interface Groep<R extends Res> { id: string; naam: string; omschrijving: string; zelf: R | null; uitwerkingen: R[] }
 export interface Tak<R extends Res> { procestype: PT; groepen: Groep<R>[]; aantal: number }
@@ -66,7 +66,7 @@ function woordenVan(tekst: string): string[] {
 }
 
 function beschrijving(r: Res, pt?: PT): string {
-  return [r.naam, r.omschrijving, r.toelichting, pt?.naam, pt?.procesobject].filter(Boolean).join(" ");
+  return [r.naam, r.omschrijving, r.toelichting, pt?.naam, pt?.procesobject, ...(r.zoektermen ?? [])].filter(Boolean).join(" ");
 }
 
 function gewogen(r: Res, pt?: PT): Map<string, number> {
@@ -79,6 +79,7 @@ function gewogen(r: Res, pt?: PT): Map<string, number> {
   voeg(r.naam, 1);
   voeg(pt?.naam, 1.2);
   voeg(r.omschrijving, 2);
+  voeg(r.zoektermen?.join(" "), 2.5);
   return uit;
 }
 

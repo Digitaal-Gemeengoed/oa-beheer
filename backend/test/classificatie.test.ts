@@ -84,3 +84,17 @@ test("afwijken van de selectielijst vraagt het recht bewaartermijn.afwijken", as
   assert.equal((await vraag(await sessie(id.data), "POST", "/api/classificatie/publiceer", { config: attr, reden: "Attribuut BIV" })).statusCode, 200);
   assert.equal(aanroepen.filter((x) => x.pad === "/classificatiemodel" && x.methode === "POST").length, 3);
 });
+
+test("ondersteunende stukken vragen ook bewaartermijn.afwijken; zoektermen niet", async () => {
+  const basis = { ...MODEL, afwijkingen: [{ resultaat: "1.1", bewaartermijn: "P12Y", reden: "Langer voor de accountant" }], attributen: [{ sleutel: "biv", label: "BIV", type: "keuze", opties: ["laag", "hoog"], verplicht: false }] };
+  const termen = { ...basis, zoektermen: [{ resultaat: "2.1", termen: ["collegevoorstel"] }] };
+  const z = await vraag(await sessie(id.data), "POST", "/api/classificatie/publiceer", { config: termen, reden: "Zoektermen erbij" });
+  assert.equal(z.statusCode, 200, z.body);
+  const metSteun = { ...termen, ondersteunend: { omschrijving: "Kopieën en kladversies", bewaartermijn: "P1Y", grondslag: "Richtlijn 2026" } };
+  assert.equal((await vraag(await sessie(id.data), "POST", "/api/classificatie/publiceer", { config: metSteun, reden: "Ondersteunend aan" })).statusCode, 403);
+  const ok = await vraag(await sessie(id.archief), "POST", "/api/classificatie/publiceer", { config: metSteun, reden: "Ondersteunend aan" });
+  assert.equal(ok.statusCode, 200, ok.body);
+  const a = await pool.query("SELECT details FROM audit WHERE actie = 'classificatiemodel.gepubliceerd' AND resultaat = 'ok' ORDER BY id DESC LIMIT 1");
+  assert.equal(a.rows[0].details.ondersteunend.bewaartermijn, "P1Y");
+  assert.equal(a.rows[0].details.zoektermen, 1);
+});

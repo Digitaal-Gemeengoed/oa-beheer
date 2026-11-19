@@ -1,5 +1,14 @@
 # Wijzigingen
 
+## 0.13.0 — 2026-11-19
+
+Classificatiemodel. Vereist opendop-mini 0.14.0 op VPS 2.
+
+- **Zoektermen** per klasse: met de knop *Zoektermen* in de boom geef je woorden op die medewerkers gebruiken en die de selectielijst niet noemt ("collegevoorstel", "projectplan"). Ze staan als labels bij de klasse; zoeken in de boom vindt ze ook. De assistent en het zoeken in het paneel gebruiken ze, en het voorbeeld laat dat zien.
+- **4. Ondersteunende stukken** (nieuwe stap): aan te zetten voor kopieën, kladversies, gedownloade stukken en stukken ter kennisname. Met wat eronder valt (de medewerker ziet die tekst), een bewaartermijn vanaf het classificeren (in maanden of jaren) en de grondslag: het besluit of de richtlijn van de gemeente. Aanzetten en wijzigen vraagt het recht `bewaartermijn.afwijken`, net als afwijken van de selectielijst. In het voorbeeld en op de versiepagina.
+- De stappen *Eigen attributen* en *Controleren en publiceren* zijn nu 5 en 6.
+- Audit: het aantal zoektermen, en termijn en grondslag van ondersteunende stukken.
+
 ## 0.12.1 — 2026-11-19
 
 - Het voorbeeld naast de bewerker (metadatamodel en classificatiemodel) valt niet meer weg onder de rand van het scherm. Het blijft tussen de bovenbalk en de onderkant van het venster staan en scrolt als geheel; de lijst met procestypen heeft geen eigen schuifbalk meer.

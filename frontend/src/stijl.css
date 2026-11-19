@@ -621,3 +621,11 @@ a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rg
 .cl-pv-klassen button.cl-pv-stap { background: #f7f8fa; position: relative; padding-right: 22px; }
 .cl-pv-klassen button.cl-pv-stap::after { content: "›"; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; color: #666; }
 .cl-pv-waarom { font-style: italic; }
+
+/* Zoektermen en ondersteunende stukken in de classificatiebewerker */
+.cl-regel-knoppen { display: flex; gap: 2px; flex-wrap: wrap; justify-content: end; }
+.cl-termen { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.cl-term { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--ab-teal-licht); color: #0b6b5e; }
+.cl-ondersteunend { margin-top: 8px; }
+.cl-duur { display: flex; gap: 8px; }
+.cl-duur .utrecht-textbox { max-width: 110px; }

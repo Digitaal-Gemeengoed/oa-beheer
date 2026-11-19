@@ -40,7 +40,10 @@ interface Config {
   attributen: Attribuut[];
   vergrendelBij: string[];
   termijnStartBij: string;
+  zoektermen?: { resultaat: string; termen: string[] }[];
+  ondersteunend?: Ondersteunend | null;
 }
+interface Ondersteunend { omschrijving: string; bewaartermijn: string; grondslag: string }
 interface Model { versie: number; config: Config; gepubliceerd: string; door: string | null; ingang?: string; ingetrokken?: Intrekking | null }
 interface Stand {
   aan: boolean;
@@ -102,7 +105,7 @@ const T = {
   reden: ["Reden (verplicht)", "Reason (required)"],
   weg: ["Afwijking weghalen", "Remove deviation"],
   klaar: ["Klaar", "Done"],
-  stap4: ["4. Eigen attributen", "4. Own attributes"],
+  stap4: ["5. Eigen attributen", "5. Own attributes"],
   stap4Uitleg: ["Kenmerken die je gemeente bij het classificeren wil vastleggen, zoals de BIV-classificatie of \"bevat bijzondere persoonsgegevens\". De medewerker vult ze in het paneel in.", "Characteristics your municipality wants to record when classifying, such as the CIA rating or \"contains special personal data\". The employee fills them in in the panel."],
   label: ["Label", "Label"],
   sleutel: ["Technische naam", "Technical name"],
@@ -116,7 +119,24 @@ const T = {
   toevoegen: ["Attribuut toevoegen", "Add attribute"],
   verwijder: ["Verwijderen", "Remove"],
   geenAttributen: ["Nog geen eigen attributen.", "No own attributes yet."],
-  stap5: ["5. Controleren en publiceren", "5. Check and publish"],
+  stap5: ["6. Controleren en publiceren", "6. Check and publish"],
+  zoektermen: ["Zoektermen", "Search terms"],
+  zoektermenUitleg: ["Woorden die medewerkers gebruiken en die de selectielijst niet noemt, zoals \"collegevoorstel\" of \"projectplan\". De assistent en het zoeken in het paneel vinden de klasse dan ook op deze woorden. Scheid ze met komma's; hoogstens 20.", "Words employees use that the schedule does not mention, such as \"council proposal\" or \"project plan\". The assistant and the search in the panel then also find the class by these words. Separate them with commas; at most 20."],
+  stapOndersteunend: ["4. Ondersteunende stukken", "4. Supporting documents"],
+  ondersteunendUitleg: ["Kopieën, kladversies, gedownloade stukken en stukken ter kennisname horen niet bij een proces en hebben geen archiefwaarde. Zet je dit aan, dan kan de medewerker zo'n stuk als ondersteunend classificeren; het mag dan na de termijn hieronder weg, gerekend vanaf het classificeren. Dit vraagt een grondslag: een besluit of richtlijn van je gemeente waarin staat wat hieronder valt. Stem het af met je archivaris.", "Copies, drafts, downloaded documents and documents received for information do not belong to a process and have no archival value. If you switch this on, employees can classify such a document as supporting; it may then be destroyed after the term below, counted from classification. This needs a basis: a decision or guideline of your municipality stating what falls under it. Agree it with your archivist."],
+  ondersteunendRecht: ["Aanzetten en wijzigen vraagt het recht bewaartermijn.afwijken (informatiebeheer of archivaris).", "Switching this on or changing it requires the bewaartermijn.afwijken right (records management or archivist)."],
+  ondersteunendAan: ["Ondersteunende stukken toestaan", "Allow supporting documents"],
+  ondersteunendStandaard: ["Kopieën, kladversies, gedownloade stukken en stukken die je alleen ter kennisname kreeg, als ze niet in een zaak zijn gebruikt.", "Copies, drafts, downloaded documents and documents you only received for information, if they were not used in a case."],
+  ondersteunendOms: ["Wat valt eronder", "What falls under it"],
+  ondersteunendOmsUitleg: ["De medewerker ziet deze tekst in het paneel.", "The employee sees this text in the panel."],
+  ondersteunendTermijn: ["Bewaartermijn", "Retention period"],
+  ondersteunendTermijnUitleg: ["Gerekend vanaf het classificeren.", "Counted from classification."],
+  ondersteunendGrondslag: ["Grondslag", "Basis"],
+  ondersteunendGrondslagUitleg: ["Het besluit of de richtlijn van de gemeente.", "The municipality's decision or guideline."],
+  ondersteunendGrondslagVoorbeeld: ["Richtlijn opschonen informatie 2026, art. 3", "Guideline on information clean-up 2026, art. 3"],
+  eenheid: ["Eenheid", "Unit"],
+  maanden: ["maanden", "months"],
+  jaarEenheid: ["jaar", "years"],
   boomUitleg: ["Elke regel is een klasse die de medewerker kan kiezen; met het vinkje bepaal je of hij in het paneel voorkomt. De lijst volgt de selectielijst: procestype, dan het resultaat, dan eventueel uitwerkingen. Een vinkje bij een procestype of resultaat zet alles eronder aan of uit; daarna kun je per regel bijstellen.", "Each line is a class the user can choose; the checkbox decides whether it appears in the panel. The list follows the retention schedule: process type, then result, then any refinements. A checkbox on a process type or result switches everything below it; you can then adjust per line."],
   allesUitklappen: ["Alles uitklappen", "Expand all"],
   allesInklappen: ["Alles inklappen", "Collapse all"],
@@ -165,6 +185,8 @@ function vast(c: Config): string {
     attributen: c.attributen.map((a) => ({ sleutel: a.sleutel, label: a.label, type: a.type, opties: a.opties, verplicht: a.verplicht, beschrijving: a.beschrijving || undefined })),
     vergrendelBij: [...c.vergrendelBij].sort(),
     termijnStartBij: c.termijnStartBij,
+    zoektermen: [...(c.zoektermen ?? [])].filter((z) => z.termen.length).map((z) => ({ resultaat: z.resultaat, termen: z.termen })).sort((a, b) => a.resultaat.localeCompare(b.resultaat)),
+    ondersteunend: c.ondersteunend ?? null,
   });
 }
 
@@ -288,6 +310,22 @@ function VersieBekijken({ ik, s, versie, herlaad }: { ik: Ik; s: Stand; versie: 
                 <ul className="ab-lijst">{v.config.uitgezet.map((id) => <li key={id}><b>{id}</b> {naamVan(id)}</li>)}</ul>
               ) : <Paragraph className="ab-klein">{tt("geen")}</Paragraph>}
             </section>
+            <section className="ab-kaart ab-blok">
+              <Heading2>{tt("stapOndersteunend").replace(/^\d+\. /, "")}</Heading2>
+              {v.config.ondersteunend ? (
+                <dl className="ab-feiten">
+                  <div><dt>{tt("ondersteunendOms")}</dt><dd>{v.config.ondersteunend.omschrijving}</dd></div>
+                  <div><dt>{tt("ondersteunendTermijn")}</dt><dd>{duur(v.config.ondersteunend.bewaartermijn)} {taal() === "en" ? "after classification" : "na het classificeren"}</dd></div>
+                  <div><dt>{tt("ondersteunendGrondslag")}</dt><dd>{v.config.ondersteunend.grondslag}</dd></div>
+                </dl>
+              ) : <Paragraph className="ab-klein">{taal() === "en" ? "Not allowed in this version." : "Niet toegestaan in deze versie."}</Paragraph>}
+            </section>
+            <section className="ab-kaart ab-blok">
+              <Heading2>{tt("zoektermen")}</Heading2>
+              {v.config.zoektermen?.length ? (
+                <ul className="ab-lijst">{v.config.zoektermen.map((z) => <li key={z.resultaat}><b>{z.resultaat}</b> {naamVan(z.resultaat)}<span className="cl-termen">{z.termen.map((t) => <span key={t} className="cl-term">{t}</span>)}</span></li>)}</ul>
+              ) : <Paragraph className="ab-klein">{tt("geen")}</Paragraph>}
+            </section>
           </div>
         </div>
       )}
@@ -368,8 +406,15 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
       return { ...c, afwijkingen: [...rest, { ...oud, ...a }] };
     });
 
+  const termenVan = useMemo(() => new Map((config.zoektermen ?? []).map((z) => [z.resultaat, z.termen])), [config.zoektermen]);
+  const zetTermen = (id: string, termen: string[]) =>
+    zetConfig((c) => {
+      const rest = (c.zoektermen ?? []).filter((z) => z.resultaat !== id);
+      return { ...c, zoektermen: termen.length ? [...rest, { resultaat: id, termen }] : rest };
+    });
+
   const q = vraag.trim().toLowerCase();
-  const zichtbaar = (r: Resultaat) => !q || r.id === q || r.id.startsWith(`${q}.`) || `${r.naam} ${r.omschrijving} ${r.toelichting ?? ""}`.toLowerCase().includes(q);
+  const zichtbaar = (r: Resultaat) => !q || r.id === q || r.id.startsWith(`${q}.`) || `${r.naam} ${r.omschrijving} ${r.toelichting ?? ""} ${(termenVan.get(r.id) ?? []).join(" ")}`.toLowerCase().includes(q);
   const fouten = (problemen ?? []).filter((p) => p.ernst === "fout");
 
   // Eén klasse in de boom: vinkje (kiesbaar), naam en termijn, afwijken.
@@ -377,6 +422,8 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
     const { kop, vink, extra, diep } = o;
     const a = afw.get(r.id);
     const isOpen = open === r.id;
+    const termen = termenVan.get(r.id) ?? [];
+    const termenOpen = open === `z:${r.id}`;
     return (
       <li key={r.id} className={`cl-resultaat${uit.has(r.id) ? " uit" : ""}${diep ? " diep" : ""}`}>
         <div className="cl-regel">
@@ -391,9 +438,18 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
               {r.procestermijn !== "nihil" ? " · gaat in als het procesobject vervalt" : ""}
               {a && <> → <b>{termijn({ waardering: a.waardering ?? r.waardering, bewaartermijn: a.bewaartermijn ?? r.bewaartermijn })}</b> ({tt("afwijking")})</>}
             </span>
+            {termen.length > 0 && (
+              <span className="cl-termen" aria-label={tt("zoektermen")}>
+                {termen.map((t) => <span key={t} className="cl-term">{t}</span>)}
+              </span>
+            )}
           </div>
-          {magAfwijken && <SubtleButton onClick={() => zetOpen(isOpen ? null : r.id)} aria-expanded={isOpen}>{isOpen ? tt("klaar") : tt("afwijken")}</SubtleButton>}
+          <div className="cl-regel-knoppen">
+            {kan && <SubtleButton onClick={() => zetOpen(termenOpen ? null : `z:${r.id}`)} aria-expanded={termenOpen}>{termenOpen ? tt("klaar") : tt("zoektermen")}</SubtleButton>}
+            {magAfwijken && <SubtleButton onClick={() => zetOpen(isOpen ? null : r.id)} aria-expanded={isOpen}>{isOpen ? tt("klaar") : tt("afwijken")}</SubtleButton>}
+          </div>
         </div>
+        {termenOpen && <TermenBewerken id={r.id} termen={termen} zet={(t) => zetTermen(r.id, t)} />}
         {isOpen && (
           <div className="md-bewerk">
             <div className="md-twee">
@@ -609,6 +665,62 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
       </section>
 
       {/* 4. Eigen attributen */}
+      <section aria-labelledby="cl-stap-ond" className="cl-sectie">
+        <Heading2 id="cl-stap-ond">{tt("stapOndersteunend")}</Heading2>
+        <Paragraph className="ab-klein">{tt("ondersteunendUitleg")}</Paragraph>
+        {kan && !magAfwijken && <Paragraph className="ab-klein">{tt("ondersteunendRecht")}</Paragraph>}
+        <label className="cl-vink">
+          <Checkbox
+            checked={!!config.ondersteunend}
+            disabled={!magAfwijken}
+            onChange={(e) => zetConfig((c) => ({ ...c, ondersteunend: e.target.checked ? (c.ondersteunend ?? { omschrijving: tt("ondersteunendStandaard"), bewaartermijn: "P1Y", grondslag: "" }) : null }))}
+          />
+          {tt("ondersteunendAan")}
+        </label>
+        {config.ondersteunend && (
+          <div className="md-bewerk cl-ondersteunend">
+            <FormField label={<FormLabel htmlFor="cl-o-oms">{tt("ondersteunendOms")}</FormLabel>} description={tt("ondersteunendOmsUitleg")}>
+              <Textarea id="cl-o-oms" rows={3} maxLength={1000} disabled={!magAfwijken} value={config.ondersteunend.omschrijving} onChange={(e) => zetConfig((c) => ({ ...c, ondersteunend: { ...c.ondersteunend!, omschrijving: e.target.value } }))} />
+            </FormField>
+            <div className="md-twee">
+              <FormField label={<FormLabel htmlFor="cl-o-n">{tt("ondersteunendTermijn")}</FormLabel>} description={tt("ondersteunendTermijnUitleg")}>
+                <div className="cl-duur">
+                  <Textbox
+                    id="cl-o-n"
+                    type="number"
+                    min={1}
+                    max={120}
+                    disabled={!magAfwijken}
+                    value={/^P(\d+)[YM]$/.exec(config.ondersteunend.bewaartermijn)?.[1] ?? ""}
+                    onChange={(e) => {
+                      const eenheid = config.ondersteunend!.bewaartermijn.endsWith("M") ? "M" : "Y";
+                      const n = Math.max(1, Math.round(Number(e.target.value) || 1));
+                      zetConfig((c) => ({ ...c, ondersteunend: { ...c.ondersteunend!, bewaartermijn: `P${n}${eenheid}` } }));
+                    }}
+                  />
+                  <Select
+                    aria-label={tt("eenheid")}
+                    disabled={!magAfwijken}
+                    value={config.ondersteunend.bewaartermijn.endsWith("M") ? "M" : "Y"}
+                    onChange={(e) => {
+                      const n = /^P(\d+)[YM]$/.exec(config.ondersteunend!.bewaartermijn)?.[1] ?? "1";
+                      zetConfig((c) => ({ ...c, ondersteunend: { ...c.ondersteunend!, bewaartermijn: `P${n}${e.target.value}` } }));
+                    }}
+                  >
+                    <SelectOption value="M">{tt("maanden")}</SelectOption>
+                    <SelectOption value="Y">{tt("jaarEenheid")}</SelectOption>
+                  </Select>
+                </div>
+              </FormField>
+              <FormField label={<FormLabel htmlFor="cl-o-g">{tt("ondersteunendGrondslag")}</FormLabel>} description={tt("ondersteunendGrondslagUitleg")}>
+                <Textbox id="cl-o-g" maxLength={300} disabled={!magAfwijken} value={config.ondersteunend.grondslag} placeholder={tt("ondersteunendGrondslagVoorbeeld")} onChange={(e) => zetConfig((c) => ({ ...c, ondersteunend: { ...c.ondersteunend!, grondslag: e.target.value } }))} />
+              </FormField>
+            </div>
+          </div>
+        )}
+        {(problemen ?? []).filter((p) => p.sleutel === "ondersteunend").map((p, i) => <p key={i} className={`md-probleem ${p.ernst}`}>{p.melding}</p>)}
+      </section>
+
       <section aria-labelledby="cl-stap4" className="cl-sectie">
         <Heading2 id="cl-stap4">{tt("stap4")}</Heading2>
         <Paragraph className="ab-klein">{tt("stap4Uitleg")}</Paragraph>
@@ -691,11 +803,16 @@ function Voorbeeld({ config, lijst, versie }: { config: Config; lijst: Selectiel
   // Wat de medewerker kan kiezen: aan staan, met de termijn van de gemeente.
   const beschikbaar = useMemo<PvKlasse[]>(() => {
     const uit = new Set(config.uitgezet ?? []);
+    const termen = new Map((config.zoektermen ?? []).map((z) => [z.resultaat, z.termen]));
     return lijst.resultaten.filter((r) => !uit.has(r.id)).map((r) => {
       const a = afw.get(r.id);
-      return a ? { ...r, waardering: a.waardering ?? r.waardering, bewaartermijn: (a.waardering ?? r.waardering) === "blijvend-bewaren" ? undefined : (a.bewaartermijn ?? r.bewaartermijn), eigen: true } : { ...r, eigen: false };
+      const z = termen.get(r.id)?.length ? { zoektermen: termen.get(r.id) } : {};
+      return a ? { ...r, ...z, waardering: a.waardering ?? r.waardering, bewaartermijn: (a.waardering ?? r.waardering) === "blijvend-bewaren" ? undefined : (a.bewaartermijn ?? r.bewaartermijn), eigen: true } : { ...r, ...z, eigen: false };
     });
-  }, [lijst, config.uitgezet, afw]);
+  }, [lijst, config.uitgezet, config.zoektermen, afw]);
+  const steun: PvKlasse | null = config.ondersteunend
+    ? { id: "ondersteunend", procestype: 0, generiek: null, naam: "Ondersteunend", omschrijving: en ? "without archival value" : "zonder archiefwaarde", waardering: "vernietigen", procestermijn: "nihil", bewaartermijn: config.ondersteunend.bewaartermijn, toelichting: config.ondersteunend.omschrijving, eigen: false }
+    : null;
   const takken = useMemo(() => boom(beschikbaar, lijst.procestypen), [beschikbaar, lijst]);
   const pt = useMemo(() => new Map(lijst.procestypen.map((p) => [p.nummer, p])), [lijst]);
   const [tekst, zetTekst] = useState(VOORBEELDTEKST);
@@ -704,7 +821,7 @@ function Voorbeeld({ config, lijst, versie }: { config: Config; lijst: Selectiel
   const gevonden = useMemo(() => zoek(beschikbaar, lijst.procestypen, vraag), [beschikbaar, lijst, vraag]);
   const [pad, zetPad] = useState<{ procestype: number | null; groep: string | null }>({ procestype: null, groep: null });
   const [keuze, zetKeuze] = useState<string | null>(null);
-  const gekozen = beschikbaar.find((r) => r.id === keuze) ?? null;
+  const gekozen = (keuze === "ondersteunend" ? steun : beschikbaar.find((r) => r.id === keuze)) ?? null;
   const kies = (r: PvKlasse) => {
     zetKeuze(r.id);
     if (vraag) {
@@ -736,6 +853,8 @@ function Voorbeeld({ config, lijst, versie }: { config: Config; lijst: Selectiel
 
   const bewaren = !gekozen
     ? ""
+    : gekozen.id === "ondersteunend"
+      ? `${en ? "Supporting: destroy" : "Ondersteunend: vernietigen"} ${duur(gekozen.bewaartermijn)} ${en ? "after classification" : "na het classificeren"} (${config.ondersteunend?.grondslag || "—"}).`
     : gekozen.waardering === "blijvend-bewaren"
       ? en ? "Keep permanently: the document goes to the archive." : "Blijvend bewaren: het stuk gaat naar het archief."
       : `${en ? "Destroy" : "Vernietigen"} ${gekozen.bewaartermijn ? (en ? `after ${duur(gekozen.bewaartermijn)}` : `na ${duur(gekozen.bewaartermijn)}`) : `(${gekozen.bewaartermijnTekst ?? "zie toelichting"})`}, ${
@@ -788,11 +907,27 @@ function Voorbeeld({ config, lijst, versie }: { config: Config; lijst: Selectiel
                 </ul>
               </>
             )}
+            {steun && (
+              <>
+                <div className="cl-pv-kop">{en ? "Not part of a process?" : "Geen onderdeel van een proces?"}</div>
+                <p className="md-paneel-hulp">{steun.toelichting}</p>
+                <ul className="cl-pv-klassen">
+                  <li>
+                    <button type="button" className={keuze === "ondersteunend" ? "gekozen" : ""} aria-pressed={keuze === "ondersteunend"} onClick={() => zetKeuze("ondersteunend")}>
+                      <span><b>{en ? "Supporting" : "Ondersteunend"}</b>, {steun.omschrijving}</span>
+                      <span className="cl-pv-klein">{en ? "destroy" : "vernietigen"} {duur(steun.bewaartermijn)} {en ? "after classification" : "na het classificeren"}{config.ondersteunend?.grondslag ? ` · ${config.ondersteunend.grondslag}` : ""}</span>
+                    </button>
+                  </li>
+                </ul>
+              </>
+            )}
 
             {gekozen && (
               <div className="cl-pv-gekozen">
-                <div className="cl-pv-titel">{gekozen.id} {gekozen.naam}</div>
-                <div className="md-paneel-hulp">{gekozen.procestype}. {pt.get(gekozen.procestype)?.naam}{gekozen.omschrijving ? ` · ${gekozen.omschrijving}` : ""}</div>
+                <div className="cl-pv-titel">{gekozen.id === "ondersteunend" ? (en ? "Supporting, without archival value" : "Ondersteunend, zonder archiefwaarde") : `${gekozen.id} ${gekozen.naam}`}</div>
+                {gekozen.id === "ondersteunend"
+                  ? <div className="md-paneel-hulp">{en ? "Basis" : "Grondslag"}: {config.ondersteunend?.grondslag || "—"}</div>
+                  : <div className="md-paneel-hulp">{gekozen.procestype}. {pt.get(gekozen.procestype)?.naam}{gekozen.omschrijving ? ` · ${gekozen.omschrijving}` : ""}</div>}
                 <span className={`cl-pv-badge${gekozen.waardering === "blijvend-bewaren" ? " bewaren" : ""}`}>{termijn(gekozen)}</span>
                 {gekozen.eigen && <div className="md-paneel-hulp">{en ? "Deviation from the schedule" : "Afwijking van de selectielijst"}: {afw.get(gekozen.id)?.reden || "—"}</div>}
                 {gekozen.waardering === "vernietigen" && gekozen.procestermijn !== "nihil" && (
@@ -904,4 +1039,17 @@ function Vinkje({ aan, half, disabled, zet, label }: { aan: boolean; half: boole
 /** Het pijltje om een tak van de boom open of dicht te klappen. */
 function Klapper({ open, wissel, label }: { open: boolean; wissel: () => void; label: string }) {
   return <button type="button" className={`cl-klapper${open ? " open" : ""}`} aria-expanded={open} aria-label={`${label} ${open ? "inklappen" : "uitklappen"}`} onClick={wissel} />;
+}
+
+/** Zoektermen bij één klasse, gescheiden door komma's. */
+function TermenBewerken({ id, termen, zet }: { id: string; termen: string[]; zet: (t: string[]) => void }) {
+  const [tekst, zetTekst] = useState(termen.join(", "));
+  const lees = (t: string) => [...new Set(t.split(",").map((x) => x.trim()).filter(Boolean))].slice(0, 20);
+  return (
+    <div className="md-bewerk">
+      <FormField label={<FormLabel htmlFor={`cl-z-${id}`}>{tt("zoektermen")}</FormLabel>} description={tt("zoektermenUitleg")}>
+        <Textbox id={`cl-z-${id}`} value={tekst} maxLength={900} placeholder="collegevoorstel, nota" onChange={(e) => { zetTekst(e.target.value); zet(lees(e.target.value)); }} />
+      </FormField>
+    </div>
+  );
 }

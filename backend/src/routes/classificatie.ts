@@ -41,6 +41,8 @@ interface Config {
   attributen: unknown[];
   vergrendelBij: string[];
   termijnStartBij: string;
+  zoektermen?: { resultaat: string; termen: string[] }[];
+  ondersteunend?: { omschrijving: string; bewaartermijn: string; grondslag: string } | null;
 }
 
 const CONFIG = {
@@ -54,6 +56,8 @@ const CONFIG = {
     attributen: { type: "array", maxItems: 50, items: { type: "object" } },
     vergrendelBij: { type: "array", maxItems: 20, items: { type: "string" } },
     termijnStartBij: { type: "string", maxLength: 100 },
+    zoektermen: { type: "array", maxItems: 1000, items: { type: "object" } },
+    ondersteunend: { type: ["object", "null"] },
   },
 } as const;
 
@@ -96,11 +100,17 @@ export async function classificatieRoutes(app: FastifyInstance): Promise<void> {
       const p = req.persoon!;
       const platform = platformVan(req);
       const huidig = await platform.vraag<{ actief: { config: Config } | null }>("GET", "/classificatiemodel", p);
-      if (afwijkingenVan(huidig.actief?.config) !== afwijkingenVan(req.body.config)) vereis(req, "bewaartermijn.afwijken");
+      // Afwijken van de selectielijst en ondersteunende stukken (een eigen termijn) horen bij informatiebeheer of de archivaris.
+      const ondersteunendVan = (c: Pick<Config, "ondersteunend"> | null | undefined) => JSON.stringify(c?.ondersteunend ?? null);
+      if (afwijkingenVan(huidig.actief?.config) !== afwijkingenVan(req.body.config) || ondersteunendVan(huidig.actief?.config) !== ondersteunendVan(req.body.config)) {
+        vereis(req, "bewaartermijn.afwijken");
+      }
       const c = req.body.config;
       const details = {
         ...(c.naam?.trim() ? { naam: c.naam.trim() } : {}),
         uitgezet: c.uitgezet?.length ?? 0,
+        zoektermen: (c.zoektermen ?? []).reduce((n, z) => n + z.termen.length, 0),
+        ...(c.ondersteunend ? { ondersteunend: { bewaartermijn: c.ondersteunend.bewaartermijn, grondslag: c.ondersteunend.grondslag } } : {}),
         afwijkingen: c.afwijkingen?.length ?? 0,
         attributen: c.attributen.length,
         vergrendelBij: c.vergrendelBij,
