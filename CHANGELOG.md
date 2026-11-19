@@ -1,5 +1,9 @@
 # Wijzigingen
 
+## 0.12.1 — 2026-11-19
+
+- Het voorbeeld naast de bewerker (metadatamodel en classificatiemodel) valt niet meer weg onder de rand van het scherm. Het blijft tussen de bovenbalk en de onderkant van het venster staan en scrolt als geheel; de lijst met procestypen heeft geen eigen schuifbalk meer.
+
 ## 0.12.0 — 2026-11-19
 
 **Classificatiemodel: klassen als boom, en een voorbeeld dat werkt zoals het paneel.**
