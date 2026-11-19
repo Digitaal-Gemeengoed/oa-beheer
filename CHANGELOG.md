@@ -1,5 +1,17 @@
 # Wijzigingen
 
+## 0.8.0 — 2026-11-19
+
+**Metadatamodel en Classificatiemodel: een overzicht met versies, bewerken en een nieuw model.**
+
+- **Classificatie heet nu Classificatiemodel** (adres `/classificatiemodel`; het oude adres stuurt door).
+- Beide modellen hebben een submenu met drie pagina's:
+  - *Overzicht*: het model dat **in gebruik is voor nieuwe stukken** (naam, basismodel of selectielijst, inhoud, wanneer en door wie gepubliceerd), een melding als er een concept in bewerking is, en alle **versies** met wat ze betekenen: de actieve versie geldt voor nieuwe stukken, oudere versies blijven gelden voor de stukken die ermee zijn vastgelegd. Elke versie is te **bekijken**, alleen lezen.
+  - *Bewerken*: de bekende bewerker, vanaf de versie in gebruik; publiceren maakt een **nieuwe versie** en brengt je terug naar het overzicht.
+  - *Nieuw model*: kies het basismodel (MDTO, RGBZ, TMLO) of de selectielijst en een naam, en ga verder in de bewerker. Publiceren maakt het de nieuwe versie voor nieuwe stukken; bestaande stukken houden hun versie.
+- Oudere versies zijn niet meer aan te passen; wie iets wil veranderen, maakt een nieuwe versie.
+- **Duidelijke melding als het platform een functie nog niet kent.** In plaats van "Het platform gaf fout 404" zegt het portaal nu dat het platform ouder is en bijgewerkt moet worden (VPS 2).
+
 ## 0.7.0 — 2026-11-19
 
 **Een echt overzicht, en accountbeheer in aparte pagina's.**

@@ -4,8 +4,10 @@ import {
   Select, SelectOption, StatusBadge, SubtleButton, Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow, Textarea, Textbox,
 } from "@utrecht/component-library-react";
 import { api, ApiFout, type Ik } from "../api";
-import { taal, tijd } from "../i18n";
+import { t, taal, tijd } from "../i18n";
+import { ga, L } from "../App";
 import { foutTekst, MeldingVak, RedenVeld, useLaden, type Melding } from "./gedeeld";
+import { Keuzekaarten, ModelOverzicht, VersieKop, type VersieRij } from "./Modelbeheer";
 
 // ---------------------------------------------------------------------------
 // Typen: zoals het platform ze geeft (oa-contract, classificatie.ts)
@@ -51,7 +53,18 @@ interface Stand {
 interface Probleem { sleutel?: string; ernst: "fout" | "waarschuwing"; melding: string }
 
 const T = {
-  titel: ["Classificatie", "Classification"],
+  titel: ["Classificatiemodel", "Classification model"],
+  introOverzicht: [
+    "Waar een stuk bij hoort in de selectielijst, en wat daaruit volgt: hoe lang het bewaard wordt en wanneer het vergrendeld is. De versie die in gebruik is, geldt voor nieuwe classificaties; stukken houden de versie waarmee ze zijn geclassificeerd. Een oudere versie kun je bekijken, niet meer aanpassen: bewerken maakt altijd een nieuwe versie.",
+    "Where a document belongs in the retention schedule, and what follows: how long it is kept and when it is locked. The version in use applies to new classifications; documents keep the version they were classified with. You can view an older version but no longer change it: editing always makes a new version.",
+  ],
+  selectielijst: ["Selectielijst", "Retention schedule"],
+  klassen: ["klassen in gebruik", "classes in use"],
+  nieuwUitleg: ["Begin opnieuw vanaf een selectielijst, met alle klassen aan en zonder afwijkingen. Met publiceren wordt het de nieuwe versie voor nieuwe classificaties; stukken houden hun versie.", "Start again from a retention schedule, with all classes on and no deviations. Publishing makes it the new version for new classifications; documents keep their version."],
+  uitgezet: ["Uitgezette klassen", "Classes switched off"],
+  geen: ["geen", "none"],
+  attributen: ["Eigen attributen", "Own attributes"],
+  termijn: ["Termijn", "Period"],
   intro: [
     "Waar een stuk bij hoort in de selectielijst, en wat daaruit volgt: hoe lang het bewaard wordt en wanneer het vergrendeld is. Medewerkers kiezen in het paneel (Classificeren) een klasse; de assistent stelt er een voor. Publiceren maakt een nieuwe versie; stukken houden de versie waarmee ze zijn geclassificeerd.",
     "Where a document belongs in the retention schedule, and what follows: how long it is kept and when it is locked. Employees choose a class in the panel (Classify); the assistant suggests one. Publishing creates a new version; documents keep the version they were classified with.",
@@ -149,19 +162,144 @@ function sleutelUit(label: string): string {
 // De pagina
 // ---------------------------------------------------------------------------
 
-export function Classificatie({ ik }: { ik: Ik }) {
+export function Classificatie({ ik, deel = "" }: { ik: Ik; deel?: string }) {
   const stand = useLaden(() => api<Stand>("GET", "/api/classificatie"));
   if (stand.fout) return <><Heading1>{tt("titel")}</Heading1><MeldingVak m={{ soort: "fout", tekst: stand.fout }} /></>;
   if (!stand.data) return <Heading1>{tt("titel")}</Heading1>;
   if (!stand.data.aan) return <><Heading1>{tt("titel")}</Heading1><Alert type="info"><Paragraph>{tt("uit")}</Paragraph></Alert></>;
-  return <Bewerker key={stand.data.actief?.versie ?? 0} ik={ik} s={stand.data} herlaad={stand.herlaad} />;
+  const s = stand.data;
+  const kan = ik.rechten.includes("classificatie.manage");
+  if (deel === "bewerken" && kan && s.actief) return <Bewerker key={s.actief.versie} ik={ik} s={s} herlaad={stand.herlaad} />;
+  if (deel === "nieuw" && kan) return <NieuwModel ik={ik} s={s} herlaad={stand.herlaad} />;
+  const v = /^versie\/(\d+)$/.exec(deel);
+  if (v) return <VersieBekijken s={s} versie={Number(v[1])} />;
+  return <Overzicht s={s} kan={kan} />;
 }
 
-function Bewerker({ ik, s, herlaad }: { ik: Ik; s: Stand; herlaad: () => void }) {
+const PAD = "/classificatiemodel";
+
+function rijenVan(s: Stand): VersieRij[] {
+  return (s.versies ?? []).map((v) => {
+    const lijst = s.selectielijsten!.find((l) => l.id === v.config.selectielijst);
+    const totaal = lijst?.resultaten.length ?? 0;
+    return {
+      versie: v.versie,
+      naam: v.config.naam?.trim() || lijst?.naam || v.config.selectielijst,
+      basis: lijst?.naam ?? v.config.selectielijst,
+      omvang: `${totaal - (v.config.uitgezet?.length ?? 0)} ${tt("klassen")}${v.config.afwijkingen?.length ? ` · ${v.config.afwijkingen.length} ${tt("afwijking")}${v.config.afwijkingen.length === 1 ? "" : "en"}` : ""}`,
+      gepubliceerd: v.gepubliceerd,
+      door: v.door,
+      actief: v.versie === s.actief?.versie,
+      teBekijken: true,
+    };
+  });
+}
+
+function Overzicht({ s, kan }: { s: Stand; kan: boolean }) {
+  const rijen = rijenVan(s);
+  const nr = new URLSearchParams(location.search).get("gepubliceerd");
+  return (
+    <ModelOverzicht
+      titel={tt("titel")}
+      intro={tt("introOverzicht")}
+      pad={PAD}
+      kan={kan}
+      rijen={rijen}
+      actief={rijen.find((r) => r.actief) ?? null}
+      basisLabel={tt("selectielijst")}
+      melding={nr ? { soort: "ok", tekst: `${tt("gepubliceerd")} ${nr}.` } : null}
+    />
+  );
+}
+
+/** Eén versie, alleen lezen. */
+function VersieBekijken({ s, versie }: { s: Stand; versie: number }) {
+  const rij = rijenVan(s).find((r) => r.versie === versie);
+  const v = (s.versies ?? []).find((x) => x.versie === versie);
+  const lijst = v ? s.selectielijsten!.find((l) => l.id === v.config.selectielijst) : undefined;
+  const naamVan = (id: string) => lijst?.resultaten.find((r) => r.id === id)?.naam ?? "";
+  return (
+    <>
+      <VersieKop titel={tt("titel")} pad={PAD} rij={rij} />
+      {!v && <Alert type="warning"><Paragraph>{t("versieOnbekend")}</Paragraph></Alert>}
+      {v && (
+        <div className="ab-twee">
+          <div className="ab-kolom">
+            <section className="ab-kaart ab-blok">
+              <dl className="ab-feiten">
+                <div><dt>{tt("selectielijst")}</dt><dd>{lijst?.naam ?? v.config.selectielijst}</dd></div>
+                <div><dt>{t("inhoud")}</dt><dd>{rij?.omvang}</dd></div>
+                <div><dt>{tt("vergrendel")}</dt><dd>{v.config.vergrendelBij.join(", ") || tt("geen")}</dd></div>
+                <div><dt>{tt("start")}</dt><dd>{v.config.termijnStartBij || "—"}</dd></div>
+              </dl>
+            </section>
+            {!!v.config.afwijkingen?.length && (
+              <section className="ab-kaart ab-blok">
+                <Heading2>{tt("afwijkingen")}</Heading2>
+                <ul className="ab-lijst">
+                  {v.config.afwijkingen.map((a) => (
+                    <li key={a.resultaat}>
+                      <b>{a.resultaat}</b> {naamVan(a.resultaat)}: {a.waardering ? tt(a.waardering === "vernietigen" ? "vernietigen" : "bewaren") : ""}{a.bewaartermijn ? ` · ${duur(a.bewaartermijn)}` : ""}
+                      <span className="ab-klein ab-blok-regel">{a.reden}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </div>
+          <div className="ab-kolom">
+            <section className="ab-kaart ab-blok">
+              <Heading2>{tt("attributen")}</Heading2>
+              {v.config.attributen.length ? (
+                <ul className="ab-lijst">
+                  {v.config.attributen.map((a) => <li key={a.sleutel}><b>{a.label}</b> <span className="ab-klein">· {a.type}{a.verplicht ? ` · ${tt("verplicht").toLowerCase()}` : ""}</span>{a.opties?.length ? <span className="ab-klein ab-blok-regel">{a.opties.join(", ")}</span> : null}</li>)}
+                </ul>
+              ) : <Paragraph className="ab-klein">{tt("geenAttributen")}</Paragraph>}
+            </section>
+            <section className="ab-kaart ab-blok">
+              <Heading2>{tt("uitgezet")}</Heading2>
+              {v.config.uitgezet?.length ? (
+                <ul className="ab-lijst">{v.config.uitgezet.map((id) => <li key={id}><b>{id}</b> {naamVan(id)}</li>)}</ul>
+              ) : <Paragraph className="ab-klein">{tt("geen")}</Paragraph>}
+            </section>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Een nieuw model: kies de selectielijst en een naam; daarna verder in de bewerker. */
+function NieuwModel({ ik, s, herlaad }: { ik: Ik; s: Stand; herlaad: () => void }) {
+  const [lijst, zetLijst] = useState<string | null>(s.selectielijsten!.length === 1 ? s.selectielijsten![0]!.id : null);
+  const [naam, zetNaam] = useState("");
+  const [start, zetStart] = useState<Config | null>(null);
+  if (start) return <Bewerker ik={ik} s={s} herlaad={herlaad} start={start} />;
+  return (
+    <>
+      <Paragraph><L naar={PAD}>← {tt("titel")}</L></Paragraph>
+      <Heading1>{t("nieuwModel")}</Heading1>
+      <Paragraph className="ab-lead">{tt("nieuwUitleg")}</Paragraph>
+      <form className="ab-formulier ab-formulier-breed" onSubmit={(e) => { e.preventDefault(); if (lijst) zetStart({ ...s.standaard!, selectielijst: lijst, uitgezet: [], afwijkingen: [], ...(naam.trim() ? { naam: naam.trim() } : { naam: undefined }) }); }}>
+        <Heading2>{tt("stap1")}</Heading2>
+        <Keuzekaarten opties={s.selectielijsten!.map((l) => ({ id: l.id, naam: l.naam, uitleg: `${l.toelichting} ${l.resultaten.length} resultaten in ${l.procestypen.length} procestypen.` }))} gekozen={lijst} kies={zetLijst} />
+        <FormField label={<FormLabel htmlFor="nc-naam">{tt("naam")}</FormLabel>} description={tt("naamUitleg")}>
+          <Textbox id="nc-naam" value={naam} maxLength={80} onChange={(e) => zetNaam(e.target.value)} />
+        </FormField>
+        <div className="ab-knoppen">
+          <PrimaryActionButton type="submit" disabled={!lijst}>{t("verder")}</PrimaryActionButton>
+          <SecondaryActionButton type="button" onClick={() => ga(PAD)}>{t("annuleren")}</SecondaryActionButton>
+        </div>
+      </form>
+    </>
+  );
+}
+
+function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => void; start?: Config }) {
   const kan = ik.rechten.includes("classificatie.manage");
   const magAfwijken = kan && ik.rechten.includes("bewaartermijn.afwijken");
   const vanActief = useMemo<Config>(() => s.actief?.config ?? s.standaard!, [s]);
-  const [config, zetConfig] = useState<Config>(vanActief);
+  const [config, zetConfig] = useState<Config>(start ?? vanActief);
   const [problemen, zetProblemen] = useState<Probleem[] | null>(null);
   const [reden, zetReden] = useState("");
   const [m, zetM] = useState<Melding>(null);
@@ -169,7 +307,7 @@ function Bewerker({ ik, s, herlaad }: { ik: Ik; s: Stand; herlaad: () => void })
   const [vraag, zetVraag] = useState("");
   const [open, zetOpen] = useState<string | null>(null);
   const lijst = s.selectielijsten!.find((l) => l.id === config.selectielijst) ?? s.selectielijsten![0]!;
-  const gewijzigd = !s.actief || vast(config) !== vast(vanActief);
+  const gewijzigd = !s.actief || !!start || vast(config) !== vast(vanActief);
   const eerste = useRef(true);
 
   useEffect(() => {
@@ -205,8 +343,8 @@ function Bewerker({ ik, s, herlaad }: { ik: Ik; s: Stand; herlaad: () => void })
     zetM(null);
     try {
       const r = await api<{ versie: number }>("POST", "/api/classificatie/publiceer", { config, reden });
-      zetM({ soort: "ok", tekst: `${tt("gepubliceerd")} ${r.versie}.` });
       zetReden("");
+      ga(`${PAD}?gepubliceerd=${r.versie}`);
       herlaad();
     } catch (e) {
       const details = e instanceof ApiFout ? e.details : undefined;
@@ -218,7 +356,8 @@ function Bewerker({ ik, s, herlaad }: { ik: Ik; s: Stand; herlaad: () => void })
 
   return (
     <>
-      <Heading1>{tt("titel")}</Heading1>
+      <Paragraph><L naar={PAD}>← {tt("titel")}</L></Paragraph>
+      <Heading1>{start ? t("nieuwModel") : `${tt("titel")} ${t("bewerken").toLowerCase()}`}</Heading1>
       <Paragraph className="ab-lead">{tt("intro")}</Paragraph>
 
       <div className="md-status">

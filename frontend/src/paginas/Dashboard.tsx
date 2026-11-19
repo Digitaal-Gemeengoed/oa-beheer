@@ -125,7 +125,7 @@ export function Dashboard({ ik }: { ik: Ik }) {
             <Blok titel={t("modellen")}>
               <dl className="ab-feiten">
                 {md.data?.aan && <div><dt><L naar="/metadatamodel">{t("metadatamodel")}</L></dt><dd>{model(md.data)}</dd></div>}
-                {cl.data?.aan && <div><dt><L naar="/classificatie">{t("classificatie")}</L></dt><dd>{model(cl.data)}</dd></div>}
+                {cl.data?.aan && <div><dt><L naar="/classificatiemodel">{t("classificatie")}</L></dt><dd>{model(cl.data)}</dd></div>}
               </dl>
             </Blok>
           )}

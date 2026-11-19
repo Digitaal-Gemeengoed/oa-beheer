@@ -4,8 +4,10 @@ import {
   Select, SelectOption, StatusBadge, SubtleButton, Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow, Textarea, Textbox,
 } from "@utrecht/component-library-react";
 import { api, ApiFout, type Ik } from "../api";
-import { taal, tijd } from "../i18n";
+import { t, taal, tijd } from "../i18n";
+import { ga, L } from "../App";
 import { foutTekst, MeldingVak, RedenVeld, useLaden, type Melding } from "./gedeeld";
+import { Keuzekaarten, ModelOverzicht, VersieKop, type VersieRij } from "./Modelbeheer";
 
 // ---------------------------------------------------------------------------
 // Typen: de catalogus komt van het platform (oa-contract, metadatamodellen.ts)
@@ -81,8 +83,13 @@ const T = {
   stap2: ["2. Velden", "2. Fields"],
   stap2Uitleg: ["Aan: het veld staat in het paneel. Verplicht: zonder dit veld heet een stuk onvolledig. De volgorde hier is de volgorde in het paneel.", "On: the field appears in the panel. Required: without it a document counts as incomplete. The order here is the order in the panel."],
   aan: ["Aan", "On"],
-  verplicht: ["Verplicht", "Required"],
+  uitKort: ["Uit", "Off"],
   veld: ["Veld", "Field"],
+  basismodel: ["Basismodel", "Base model"],
+  introOverzicht: ["Welke metadata een medewerker in het paneel Metadateren invult. De versie die in gebruik is, geldt voor nieuwe stukken; stukken die al zijn vastgelegd houden de versie waarmee ze zijn vastgelegd. Een oudere versie kun je bekijken, niet meer aanpassen: bewerken maakt altijd een nieuwe versie.", "Which metadata a member of staff fills in in the Metadata panel. The version in use applies to new documents; documents already registered keep the version they were registered with. You can view an older version but no longer change it: editing always makes a new version."],
+  nieuwUitleg: ["Begin opnieuw vanaf een basismodel. Je stelt het model daarna in zoals altijd; met publiceren wordt het de nieuwe versie voor nieuwe stukken. Bestaande stukken houden hun versie.", "Start again from a base model. You then set up the model as usual; publishing makes it the new version for new documents. Existing documents keep their version."],
+  nieuwConcept: ["Er is al een concept in bewerking. Een nieuw model vervangt dat concept zodra je iets wijzigt.", "A draft is already in progress. A new model replaces that draft as soon as you change something."],
+  verplicht: ["Verplicht", "Required"],
   inModel: ["In het model", "In the model"],
   soort: ["Soort", "Type"],
   bewerk: ["Aanpassen", "Edit"],
@@ -228,20 +235,128 @@ const zelfde = (a: Config, b: Config) => gelijk(vast(a), vast(b));
 // De pagina
 // ---------------------------------------------------------------------------
 
-export function Metadatamodel({ ik }: { ik: Ik }) {
+export function Metadatamodel({ ik, deel = "" }: { ik: Ik; deel?: string }) {
   const stand = useLaden(() => api<Stand>("GET", "/api/metadatamodel"));
   if (stand.fout) return <><Heading1>{tt("titel")}</Heading1><MeldingVak m={{ soort: "fout", tekst: stand.fout }} /></>;
   if (!stand.data) return <Heading1>{tt("titel")}</Heading1>;
   if (!stand.data.aan) return <><Heading1>{tt("titel")}</Heading1><Alert type="info"><Paragraph>{tt("uit")}</Paragraph></Alert></>;
-  // Na publiceren opnieuw beginnen vanaf de nieuwe versie.
-  return <Bewerker key={stand.data.actief?.versie} ik={ik} s={stand.data} herlaad={stand.herlaad} />;
+  const s = stand.data;
+  const kan = ik.rechten.includes("metadata.manage");
+  if (deel === "bewerken" && kan) return <Bewerker key={s.actief?.versie} ik={ik} s={s} herlaad={stand.herlaad} />;
+  if (deel === "nieuw" && kan) return <NieuwModel ik={ik} s={s} herlaad={stand.herlaad} />;
+  const v = /^versie\/(\d+)$/.exec(deel);
+  if (v) return <VersieBekijken s={s} versie={Number(v[1])} />;
+  return <Overzicht s={s} kan={kan} />;
 }
 
-function Bewerker({ ik, s, herlaad }: { ik: Ik; s: Stand; herlaad: () => void }) {
+const PAD = "/metadatamodel";
+
+function rijenVan(s: Stand): VersieRij[] {
+  const cat = s.catalogus!;
+  const eigen = (s.versies ?? []).some((v) => !v.gedeeld);
+  return (s.versies ?? []).map((v) => ({
+    versie: v.versie,
+    naam: v.modelnaam ?? (v.config ? naamVan(v.config, cat) : tt("standaardmodel")),
+    basis: v.model ? cat.modellen[v.model]?.naam ?? v.model : tt("standaardmodel"),
+    omvang: `${v.velden} ${tt("velden").toLowerCase()}`,
+    gepubliceerd: v.gepubliceerd,
+    door: v.gedeeld ? null : v.door,
+    actief: v.versie === s.actief?.versie && v.gedeeld === !eigen,
+    teBekijken: true,
+  }));
+}
+
+function Overzicht({ s, kan }: { s: Stand; kan: boolean }) {
+  const rijen = rijenVan(s);
+  const nr = new URLSearchParams(location.search).get("gepubliceerd");
+  return (
+    <ModelOverzicht
+      titel={tt("titel")}
+      intro={tt("introOverzicht")}
+      pad={PAD}
+      kan={kan}
+      rijen={rijen}
+      actief={rijen.find((r) => r.actief) ?? null}
+      basisLabel={tt("basismodel")}
+      concept={s.concept ? { gewijzigd: s.concept.gewijzigd, door: s.concept.door } : null}
+      melding={nr ? { soort: "ok", tekst: `${tt("gepubliceerd")} ${nr}.` } : null}
+    />
+  );
+}
+
+/** Eén versie, alleen lezen: welke velden, aan of verplicht, met label. */
+function VersieBekijken({ s, versie }: { s: Stand; versie: number }) {
+  const cat = s.catalogus!;
+  const rij = rijenVan(s).find((r) => r.versie === versie);
+  const v = (s.versies ?? []).filter((x) => x.versie === versie).sort((a) => (a.gedeeld ? 1 : -1))[0];
+  const config = v?.config ?? (v && rij?.actief ? configVanActief(s) : null);
+  return (
+    <>
+      <VersieKop titel={tt("titel")} pad={PAD} rij={rij} />
+      {!v && <Alert type="warning"><Paragraph>{t("versieOnbekend")}</Paragraph></Alert>}
+      {v && !config && <Paragraph>{tt("standaardmodel")} · {v.velden} {tt("velden").toLowerCase()}</Paragraph>}
+      {config && (
+        <div className="ab-tabel">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell>{tt("veld")}</TableHeaderCell>
+                <TableHeaderCell>{t("status")}</TableHeaderCell>
+                <TableHeaderCell>{t("omschrijving")}</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {config.velden.map((k) => {
+                const c = cat.modellen[config.basis]?.velden.find((x) => x.sleutel === k.sleutel);
+                return (
+                  <TableRow key={k.sleutel}>
+                    <TableCell><b>{k.label || c?.label || k.sleutel}</b><span className="ab-klein ab-blok-regel ab-mono">{k.sleutel}{k.eigen ? ` · ${tt("eigen")}` : ""}</span></TableCell>
+                    <TableCell>{k.verplicht ? <StatusBadge status="danger">{tt("verplicht")}</StatusBadge> : k.aan ? <StatusBadge status="safe">{tt("aan")}</StatusBadge> : <StatusBadge status="neutral">{tt("uitKort")}</StatusBadge>}</TableCell>
+                    <TableCell className="ab-klein">{k.beschrijving || c?.beschrijving || ""}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Een nieuw model: kies het basismodel en een naam; daarna verder in de bewerker. */
+function NieuwModel({ ik, s, herlaad }: { ik: Ik; s: Stand; herlaad: () => void }) {
+  const cat = s.catalogus!;
+  const [basis, zetBasis] = useState<ModelId | null>(null);
+  const [naam, zetNaam] = useState("");
+  const [start, zetStart] = useState<Config | null>(null);
+  if (start) return <Bewerker ik={ik} s={s} herlaad={herlaad} start={start} />;
+  return (
+    <>
+      <Paragraph><L naar={PAD}>← {tt("titel")}</L></Paragraph>
+      <Heading1>{t("nieuwModel")}</Heading1>
+      <Paragraph className="ab-lead">{tt("nieuwUitleg")}</Paragraph>
+      {s.concept && <Alert type="warning"><Paragraph>{tt("nieuwConcept")}</Paragraph></Alert>}
+      <form className="ab-formulier ab-formulier-breed" onSubmit={(e) => { e.preventDefault(); if (basis) zetStart({ ...standaardConfig(cat.modellen[basis]), ...(naam.trim() ? { naam: naam.trim() } : {}) }); }}>
+        <Heading2>{tt("stap1")}</Heading2>
+        <Keuzekaarten opties={MODELLEN.map((id) => ({ id, naam: cat.modellen[id].naam, sub: cat.modellen[id].versie, uitleg: cat.modellen[id].uitleg }))} gekozen={basis} kies={zetBasis} />
+        <FormField label={<FormLabel htmlFor="nm-naam">{tt("naam")}</FormLabel>} description={tt("modelnaamUitleg")}>
+          <Textbox id="nm-naam" value={naam} maxLength={80} placeholder={basis ? cat.modellen[basis].naam : ""} onChange={(e) => zetNaam(e.target.value)} />
+        </FormField>
+        <div className="ab-knoppen">
+          <PrimaryActionButton type="submit" disabled={!basis}>{t("verder")}</PrimaryActionButton>
+          <SecondaryActionButton type="button" onClick={() => ga(PAD)}>{t("annuleren")}</SecondaryActionButton>
+        </div>
+      </form>
+    </>
+  );
+}
+
+function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => void; start?: Config }) {
   const kan = ik.rechten.includes("metadata.manage");
   const cat = s.catalogus!;
   const vanActief = useMemo(() => configVanActief(s), [s]);
-  const [config, zetConfig] = useState<Config>(s.concept?.config ?? vanActief);
+  const [config, zetConfig] = useState<Config>(start ?? s.concept?.config ?? vanActief);
   const [open, zetOpen] = useState<string | null>(null);
   const [wissel, zetWissel] = useState<ModelId | null>(null);
   const [controle, zetControle] = useState<Controle | null>(null);
@@ -251,7 +366,8 @@ function Bewerker({ ik, s, herlaad }: { ik: Ik; s: Stand; herlaad: () => void })
   const [bezig, zetBezig] = useState(false);
   const model = cat.modellen[config.basis];
   const gewijzigd = !zelfde(config, vanActief);
-  const eerste = useRef(true);
+  // Een nieuw model meteen als concept bewaren.
+  const eerste = useRef(!start);
 
   // Toetsen (en het voorbeeld bijwerken) bij elke wijziging; het concept bewaren als er iets afwijkt.
   useEffect(() => {
@@ -307,8 +423,8 @@ function Bewerker({ ik, s, herlaad }: { ik: Ik; s: Stand; herlaad: () => void })
     zetM(null);
     try {
       const r = await api<{ versie: number }>("POST", "/api/metadatamodel/publiceer", { config, reden });
-      zetM({ soort: "ok", tekst: `${tt("gepubliceerd")} ${r.versie}.` });
       zetReden("");
+      ga(`${PAD}?gepubliceerd=${r.versie}`);
       herlaad();
     } catch (e) {
       const details = e instanceof ApiFout ? e.details : undefined;
@@ -332,7 +448,8 @@ function Bewerker({ ik, s, herlaad }: { ik: Ik; s: Stand; herlaad: () => void })
 
   return (
     <>
-      <Heading1>{tt("titel")}</Heading1>
+      <Paragraph><L naar={PAD}>← {tt("titel")}</L></Paragraph>
+      <Heading1>{start ? t("nieuwModel") : `${tt("titel")} ${t("bewerken").toLowerCase()}`}</Heading1>
       <Paragraph className="ab-lead">{tt("intro")}</Paragraph>
 
       <div className="md-status">

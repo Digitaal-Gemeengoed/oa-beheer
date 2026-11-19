@@ -63,6 +63,11 @@ export function App() {
   if (ik === undefined) return <Thema><Paragraph className="ab-smal">{t("laden")}</Paragraph></Thema>;
   if (ik === null) return <Thema><Aanmelden /></Thema>;
 
+  // Het oude adres van het classificatiemodel.
+  if (pad === "/classificatie") {
+    history.replaceState(null, "", "/classificatiemodel");
+    dispatchEvent(new PopStateEvent("popstate"));
+  }
   const r = new Set(ik.rechten);
   const uitloggen = async () => {
     const { doorsturen } = await api<{ doorsturen: string }>("POST", "/api/auth/uitloggen");
@@ -79,9 +84,9 @@ export function App() {
   else if (pad === "/groepen") inhoud = <Groepen ik={ik} />;
   else if (pad === "/audit" && r.has("audit.view")) inhoud = <Audit />;
   else if (pad === "/instellingen" && (r.has("settings.view") || r.has("settings.manage"))) inhoud = <Instellingen ik={ik} />;
-  else if (pad === "/metadatamodel" && (r.has("metadata.view") || r.has("metadata.manage"))) inhoud = <Metadatamodel ik={ik} />;
+  else if ((pad === "/metadatamodel" || pad.startsWith("/metadatamodel/")) && (r.has("metadata.view") || r.has("metadata.manage"))) inhoud = <Metadatamodel ik={ik} deel={pad.slice("/metadatamodel/".length)} />;
   else if (pad === "/anonimiseren" && r.has("anonimiseren.view")) inhoud = <Anonimiseren ik={ik} />;
-  else if (pad === "/classificatie" && (r.has("classificatie.view") || r.has("classificatie.manage"))) inhoud = <Classificatie ik={ik} />;
+  else if ((pad === "/classificatiemodel" || pad.startsWith("/classificatiemodel/")) && (r.has("classificatie.view") || r.has("classificatie.manage"))) inhoud = <Classificatie ik={ik} deel={pad.slice("/classificatiemodel/".length)} />;
   else if (pad === "/profiel") inhoud = <Profiel ik={ik} opnieuw={laad} />;
   else inhoud = <Alert type="warning"><Paragraph>{t("geenRecht")}</Paragraph></Alert>;
 
@@ -125,8 +130,18 @@ export function App() {
               <>
                 <span className="ab-nav-kop">{t("navInformatie")}</span>
                 <ul>
-                  {(r.has("metadata.view") || r.has("metadata.manage")) && <li><L naar="/metadatamodel">{t("metadatamodel")}</L></li>}
-                  {(r.has("classificatie.view") || r.has("classificatie.manage")) && <li><L naar="/classificatie">{t("classificatie")}</L></li>}
+                  {(r.has("metadata.view") || r.has("metadata.manage")) && (
+                    <li>
+                      <L naar="/metadatamodel">{t("metadatamodel")}</L>
+                      {pad.startsWith("/metadatamodel") && <Modelmenu pad="/metadatamodel" kan={r.has("metadata.manage")} />}
+                    </li>
+                  )}
+                  {(r.has("classificatie.view") || r.has("classificatie.manage")) && (
+                    <li>
+                      <L naar="/classificatiemodel">{t("classificatie")}</L>
+                      {pad.startsWith("/classificatiemodel") && <Modelmenu pad="/classificatiemodel" kan={r.has("classificatie.manage")} />}
+                    </li>
+                  )}
                   {r.has("anonimiseren.view") && <li><L naar="/anonimiseren">{t("anonimiseren")}</L></li>}
                 </ul>
               </>
@@ -142,6 +157,17 @@ export function App() {
         </div>
       </div>
     </Thema>
+  );
+}
+
+/** Submenu van een model: overzicht, bewerken (nieuwe versie), nieuw model. */
+function Modelmenu({ pad, kan }: { pad: string; kan: boolean }) {
+  return (
+    <ul className="ab-nav-sub">
+      <li><L naar={pad} exact>{t("modelOverzicht")}</L></li>
+      {kan && <li><L naar={`${pad}/bewerken`}>{t("bewerken")}</L></li>}
+      {kan && <li><L naar={`${pad}/nieuw`}>{t("nieuwModel")}</L></li>}
+    </ul>
   );
 }
 

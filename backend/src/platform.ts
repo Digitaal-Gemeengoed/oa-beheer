@@ -37,6 +37,10 @@ export class Platform {
     }
     const j = (await r.json().catch(() => ({}))) as T & { fout?: string; melding?: string; details?: unknown };
     if (!r.ok) {
+      // Een route die het platform niet kent: het platform is ouder dan dit portaal.
+      if (r.status === 404 && !j.fout) {
+        throw new AppFout(502, "platform-te-oud", `Het platform kent deze functie nog niet (${methode} ${pad}). Werk het platform bij: bijwerken.sh op de server van het platform (VPS 2).`);
+      }
       throw new AppFout(r.status === 422 ? 422 : 502, j.fout ?? "platform-fout", j.melding ?? `Het platform gaf fout ${r.status}.`, j.details);
     }
     return j;
