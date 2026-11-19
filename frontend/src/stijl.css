@@ -653,6 +653,7 @@ a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rg
 
 /* Standaardattributen in stap 5 */
 .cl-standaard { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 12px; margin: 8px 0 20px; align-items: start; }
+.cl-st-kolom { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .cl-st-groep { border: 1px solid var(--ab-rand); border-radius: 8px; padding: 8px 12px 10px; margin: 0; background: var(--ab-kaart); min-width: 0; }
 .cl-st-groep legend { font-weight: 600; padding: 0 6px; }
 .cl-st-groep ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }

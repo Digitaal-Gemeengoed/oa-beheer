@@ -1,5 +1,9 @@
 # Wijzigingen
 
+## 0.15.1 — 2026-11-19
+
+- Standaardattributen: de groepen staan in twee vaste kolommen (Privacy en Informatiebeveiliging links, Archief en Continuïteit rechts). Geen witruimte meer tussen de rijen, en een groep die groeit als je een attribuut aanzet, verspringt niet.
+
 ## 0.15.0 — 2026-11-19
 
 **Standaardattributen in stap 5 van het classificatiemodel.**

@@ -732,8 +732,11 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
         <Paragraph className="ab-klein">{tt("stap4Uitleg")}</Paragraph>
         <Heading3>{tt("standaardKop")}</Heading3>
         <Paragraph className="ab-klein">{tt("standaardUitleg")}</Paragraph>
+        {/* Twee vaste kolommen: een groep die groeit als je een attribuut aanzet, verspringt dan niet naar de andere kolom. */}
         <div className="cl-standaard">
-          {GROEPEN.map((g) => (
+          {[GROEPEN.slice(0, Math.ceil(GROEPEN.length / 2)), GROEPEN.slice(Math.ceil(GROEPEN.length / 2))].map((kolom, k) => (
+          <div key={k} className="cl-st-kolom">
+          {kolom.map((g) => (
             <fieldset key={g} className="cl-st-groep">
               <legend>{g}</legend>
               <ul>
@@ -771,6 +774,8 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
                 })}
               </ul>
             </fieldset>
+          ))}
+          </div>
           ))}
         </div>
 
