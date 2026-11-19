@@ -57,7 +57,7 @@ export function weigerAls(reden: string | null): void {
 export async function laadDoel(db: Db, id: string): Promise<Doelaccount & { email: string; status: string; naam: string }> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new AppFout(404, "niet-gevonden", "Dit account bestaat niet.");
   const r = await db.query(
-    `SELECT a.id, a.email, a.naam, a.status, a.hoofdaccount, coalesce(max(g.niveau), 0)::int AS niveau
+    `SELECT a.id, a.email, a.naam, a.taal, a.status, a.hoofdaccount, coalesce(max(g.niveau), 0)::int AS niveau
        FROM accounts a LEFT JOIN lidmaatschappen l ON l.account = a.id LEFT JOIN groepen g ON g.id = l.groep
       WHERE a.id = $1 GROUP BY a.id`,
     [id],

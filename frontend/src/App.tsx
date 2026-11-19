@@ -3,7 +3,7 @@ import { Alert, Button, Document, Heading1, Link, Paragraph, PrimaryActionButton
 import { api, bijNietIngelogd, type Ik } from "./api";
 import { t, tijd, zetTaal } from "./i18n";
 import { Dashboard } from "./paginas/Dashboard";
-import { Accounts, AccountDetail } from "./paginas/Accounts";
+import { Accounts, AccountDetail, GeplandeWijzigingen, NieuwAccount, Sessies } from "./paginas/Accounts";
 import { Groepen } from "./paginas/Groepen";
 import { Audit } from "./paginas/Audit";
 import { Instellingen } from "./paginas/Instellingen";
@@ -12,6 +12,7 @@ import { Nood } from "./paginas/Nood";
 import { Metadatamodel } from "./paginas/Metadatamodel";
 import { Anonimiseren } from "./paginas/Anonimiseren";
 import { Classificatie } from "./paginas/Classificatie";
+import { initialen } from "./paginas/gedeeld";
 
 /** Eenvoudige router op de History-API. */
 export function ga(pad: string): void {
@@ -19,10 +20,11 @@ export function ga(pad: string): void {
   dispatchEvent(new PopStateEvent("popstate"));
 }
 
-export function L({ naar, children }: { naar: string; children: ReactNode }) {
-  const huidig = location.pathname === naar || (naar !== "/" && location.pathname.startsWith(`${naar}/`));
+export function L({ naar, children, className, exact }: { naar: string; children: ReactNode; className?: string; exact?: boolean }) {
+  const pad = naar.split("?")[0]!;
+  const huidig = location.pathname === pad || (!exact && pad !== "/" && location.pathname.startsWith(`${pad}/`));
   return (
-    <Link href={naar} aria-current={huidig ? "page" : undefined} onClick={(e: MouseEvent) => { e.preventDefault(); ga(naar); }}>
+    <Link href={naar} className={className} aria-current={huidig ? "page" : undefined} onClick={(e: MouseEvent) => { e.preventDefault(); ga(naar); }}>
       {children}
     </Link>
   );
@@ -70,7 +72,10 @@ export function App() {
   let inhoud: ReactNode;
   if (pad === "/") inhoud = <Dashboard ik={ik} />;
   else if (pad === "/accounts" && r.has("accounts.view")) inhoud = <Accounts ik={ik} />;
-  else if (pad.startsWith("/accounts/") && r.has("accounts.view")) inhoud = <AccountDetail ik={ik} id={pad.split("/")[2]} />;
+  else if (pad === "/accounts/nieuw" && r.has("accounts.manage")) inhoud = <NieuwAccount />;
+  else if (pad === "/accounts/gepland" && r.has("accounts.view")) inhoud = <GeplandeWijzigingen />;
+  else if (pad === "/accounts/sessies" && r.has("accounts.view") && ik.niveau >= 3) inhoud = <Sessies />;
+  else if (/^\/accounts\/[0-9a-f-]{36}$/i.test(pad) && r.has("accounts.view")) inhoud = <AccountDetail ik={ik} id={pad.split("/")[2]!} />;
   else if (pad === "/groepen") inhoud = <Groepen ik={ik} />;
   else if (pad === "/audit" && r.has("audit.view")) inhoud = <Audit />;
   else if (pad === "/instellingen" && (r.has("settings.view") || r.has("settings.manage"))) inhoud = <Instellingen ik={ik} />;
@@ -101,7 +106,19 @@ export function App() {
           <nav className="ab-nav" aria-label={t("titel")}>
             <ul>
               <li><L naar="/">{t("dashboard")}</L></li>
-              {r.has("accounts.view") && <li><L naar="/accounts">{t("accounts")}</L></li>}
+              {r.has("accounts.view") && (
+                <li>
+                  <L naar="/accounts">{t("accounts")}</L>
+                  {pad.startsWith("/accounts") && (
+                    <ul className="ab-nav-sub">
+                      <li><L naar="/accounts" exact>{t("accountsOverzicht")}</L></li>
+                      {r.has("accounts.manage") && <li><L naar="/accounts/nieuw">{t("accountNieuw")}</L></li>}
+                      <li><L naar="/accounts/gepland">{t("accountsGepland")}</L></li>
+                      {ik.niveau >= 3 && <li><L naar="/accounts/sessies">{t("accountsSessies")}</L></li>}
+                    </ul>
+                  )}
+                </li>
+              )}
               {(r.has("groups.view") || r.has("groups.manage") || r.has("accounts.manage")) && <li><L naar="/groepen">{t("groepen")}</L></li>}
             </ul>
             {(r.has("metadata.view") || r.has("metadata.manage") || r.has("classificatie.view") || r.has("classificatie.manage") || r.has("anonimiseren.view")) && (
@@ -126,11 +143,6 @@ export function App() {
       </div>
     </Thema>
   );
-}
-
-function initialen(naam: string): string {
-  const d = naam.trim().split(/\s+/).filter((w) => /^\p{Lu}/u.test(w));
-  return ((d[0]?.[0] ?? naam[0] ?? "?") + (d.length > 1 ? d[d.length - 1]![0] : "")).toUpperCase();
 }
 
 function Thema({ children }: { children: ReactNode }) {

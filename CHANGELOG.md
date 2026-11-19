@@ -1,5 +1,18 @@
 # Wijzigingen
 
+## 0.7.0 — 2026-11-19
+
+**Een echt overzicht, en accountbeheer in aparte pagina's.**
+
+- **Overzicht**: een begroeting, getallen die je naar de juiste lijst brengen (actieve accounts, geblokkeerd of gedeactiveerd, gepland, actieve sessies, mislukte aanmeldingen, noodtoegang), *Vraagt aandacht* (mislukte aanmeldingen, noodtoegang, accounts zonder groep, accounts die na een week nog nooit hebben ingelogd, de eerstvolgende geplande wijzigingen), *Recente activiteit* in gewone woorden (zonder de losse API-verzoeken), de stand van het metadatamodel en het classificatiemodel, en snelkoppelingen. Wat je ziet, hangt af van je rechten.
+- **Accounts** heeft een submenu in de zijbalk, met aparte pagina's per functie:
+  - *Overzicht*: zoeken op naam of e-mail, filteren op status (met aantallen) en op groep, ook "zonder groep"; naam en e-mail samen, groepen als labels, laatst actief als "4 min geleden".
+  - *Account toevoegen* (alleen met `accounts.manage`): een eigen pagina; daarna ga je naar het nieuwe account.
+  - *Gepland*: alle statuswijzigingen die nog moeten ingaan, met **annuleren** (met reden). De wijziging blijft in de geschiedenis staan, met wie annuleerde en waarom.
+  - *Sessies* (vanaf niveau 3): wie nu is ingelogd, op welk apparaat en IP-adres, met **één sessie beëindigen** (met reden) bij wie je mag beheren.
+- **Een account**: een kop met naam, status, niveau, groepen, laatst actief en het aantal sessies; daaronder kaarten voor toegang (groepen), naam en taal (nieuw), status (nu of later) en overal uitloggen; de geschiedenis toont ook geannuleerde wijzigingen.
+- Database: migratie `005_annuleren.sql` (kolommen voor annuleren; de app-rol kan nog steeds niets verwijderen). Nieuwe API's: `GET /api/accounts/gepland`, `POST /api/accounts/gepland/{id}/annuleren`, `GET /api/sessies`, `POST /api/sessies/{id}/beeindigen`; elke handeling komt in de audit.
+
 ## 0.6.0 — 2026-11-19
 
 **Een vriendelijker en compacter portaal.**

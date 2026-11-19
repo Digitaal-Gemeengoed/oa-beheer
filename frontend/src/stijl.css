@@ -301,6 +301,86 @@ html, body { margin: 0; background: #f3f5f9; }
 .ab-rechtenraster { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 16px; }
 .ab-rechtenraster small { color: var(--ab-grijs); }
 
+/* Submenu in de zijbalk */
+.ab-nav-sub { margin: 2px 0 6px 12px !important; padding-left: 8px !important; border-left: 2px solid var(--ab-rand); }
+.ab-nav-sub a { padding: 5px 10px; font-size: 13px; color: var(--ab-grijs); }
+.ab-nav-sub a[aria-current="page"] { background: none; color: var(--ab-blauw-donker); font-weight: 650; }
+@media (max-width: 860px) { .ab-nav-sub { display: none !important; } }
+
+/* Kop van een pagina, werkbalk, zoeken en filters */
+.ab-paginakop { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.ab-paginakop .utrecht-heading-1 { margin: 0; }
+.ab-werkbalk { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 8px 0 4px; }
+.ab-zoek { flex: 1 1 260px; max-width: 360px; }
+.ab-zoek .utrecht-textbox { width: 100%; }
+.ab-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ab-chip { font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--ab-rand-sterk); background: #fff; color: var(--ab-tekst); cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.ab-chip:hover { border-color: var(--ab-blauw); color: var(--ab-blauw-donker); }
+.ab-chip.aan { background: var(--ab-blauw); border-color: var(--ab-blauw); color: #fff; }
+.ab-chip-n { font-size: 11.5px; padding: 0 6px; border-radius: 999px; background: #eef1f5; color: #475569; }
+.ab-chip.aan .ab-chip-n { background: rgba(255,255,255,.25); color: #fff; }
+.ab-chip:focus-visible { outline: 2px solid var(--ab-blauw); outline-offset: 2px; }
+.ab-verborgen { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ab-leeg { padding: 14px; margin: 0; color: var(--ab-grijs); }
+.ab-lead { max-width: 760px; color: #475569; }
+.ab-fouttekst { color: var(--ab-rood); font-size: 12.5px; flex-basis: 100%; }
+.ab-inline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 280px; }
+.ab-inline .utrecht-textbox { flex: 1 1 160px; min-width: 160px; }
+
+/* Personen */
+.ab-persoon { display: inline-flex; gap: 10px; align-items: center; }
+.ab-blok-regel { display: block; }
+.ab-avatar.groot { width: 52px; height: 52px; font-size: 18px; flex: none; }
+.ab-profielkop { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 16px 20px; margin: 4px 0 12px; }
+.ab-profielkop-tekst { display: grid; gap: 4px; flex: 1 1 260px; }
+.ab-profielkop-tekst .utrecht-heading-1 { margin: 0; }
+.ab-profielkop-feiten { margin: 0; display: flex; gap: 24px; }
+
+/* Overzicht */
+.ab-welkom .utrecht-heading-1 { margin-bottom: 2px; }
+.ab-getallen { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin: 12px 0 16px; }
+.ab-getalkaart { display: grid; gap: 2px; text-decoration: none !important; color: inherit !important; transition: border-color .12s, box-shadow .12s; }
+a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rgba(47, 111, 214, .12); }
+.ab-getal { font-size: 24px; font-weight: 700; color: var(--ab-blauw-donker); line-height: 1.2; }
+.ab-getal-titel { font-size: 12.5px; color: var(--ab-grijs); }
+.ab-getalkaart.let-op { border-color: #f2d9ad; background: var(--ab-oranje-licht); }
+.ab-getalkaart.let-op .ab-getal { color: var(--ab-oranje); }
+.ab-twee { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
+.ab-kolom { display: grid; gap: 16px; min-width: 0; }
+@media (max-width: 1000px) { .ab-twee { grid-template-columns: minmax(0, 1fr); } }
+.ab-blok { padding: 14px 18px; display: grid; gap: 10px; }
+.ab-blok .utrecht-heading-2 { margin: 0; font-size: 15px; }
+.ab-blok .utrecht-paragraph { margin: 0; }
+.ab-blok .ab-vinkjes { margin: 0; }
+.ab-blok-kop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.ab-blok-kop a { font-size: 13px; }
+.ab-aandacht { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ab-aandacht li { padding: 8px 12px; border-radius: var(--ab-hoek); background: var(--ab-blauw-zacht); border-left: 3px solid var(--ab-blauw); }
+.ab-aandacht li.let-op { background: var(--ab-oranje-licht); border-left-color: var(--ab-oranje); }
+.ab-telling { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.ab-aandacht a { color: var(--ab-tekst); text-decoration: none; display: block; }
+.ab-aandacht a:hover { text-decoration: underline; }
+.ab-activiteit { list-style: none; margin: 0; padding: 0; display: grid; }
+.ab-activiteit li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--ab-rand); }
+.ab-activiteit li:last-child { border-bottom: 0; }
+.ab-activiteit-wat { display: grid; min-width: 0; }
+.ab-activiteit-wat > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-stip { width: 8px; height: 8px; border-radius: 50%; background: var(--ab-groen); }
+.ab-stip.fout { background: var(--ab-rood); }
+.ab-rechts { text-align: end; white-space: nowrap; }
+.ab-feiten { margin: 0; display: grid; gap: 8px; }
+.ab-feiten > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.ab-profielkop-feiten > div { display: grid; gap: 0; }
+.ab-feiten dt { font-size: 12.5px; color: var(--ab-grijs); }
+.ab-feiten dd { margin: 0; font-weight: 600; }
+.ab-snel { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ab-snel a { display: block; padding: 6px 10px; border-radius: var(--ab-hoek); text-decoration: none; }
+.ab-snel a:hover { background: var(--ab-blauw-licht); }
+
+/* Formulieren met twee velden naast elkaar */
+.ab-velden-twee { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.ab-velden-twee .utrecht-textbox, .ab-velden-twee .utrecht-select { width: 100%; max-width: none; box-sizing: border-box; }
+
 /* NL Design System zet het vinkje als data:-afbeelding; de CSP staat alleen
    'self' toe. Dezelfde iconen als eigen bestanden. */
 .utrecht-checkbox--custom.utrecht-checkbox--checked,

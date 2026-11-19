@@ -65,7 +65,7 @@ export async function voerStatuswijzigingenUit(pool: pg.Pool, nu: Date): Promise
     const r = await c.query(
       `SELECT s.id, s.account, s.status, s.reden, s.door, a.email
          FROM statuswijzigingen s JOIN accounts a ON a.id = s.account
-        WHERE s.uitgevoerd IS NULL AND s.ingang <= $1
+        WHERE s.uitgevoerd IS NULL AND s.geannuleerd IS NULL AND s.ingang <= $1
         ORDER BY s.ingang, s.aangemaakt
         FOR UPDATE OF s SKIP LOCKED`,
       [nu],

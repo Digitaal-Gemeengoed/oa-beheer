@@ -50,13 +50,29 @@ export async function profielRoutes(app: FastifyInstance): Promise<void> {
     const uit: Record<string, unknown> = { niveau: p.niveau };
     if (p.rechten.has("accounts.view")) {
       uit.accounts = (await d.pool.query("SELECT status, count(*)::int AS n FROM accounts WHERE NOT hoofdaccount GROUP BY status")).rows;
-      uit.gepland = (await d.pool.query("SELECT count(*)::int AS n FROM statuswijzigingen WHERE uitgevoerd IS NULL")).rows[0].n;
+      uit.gepland = (await d.pool.query("SELECT count(*)::int AS n FROM statuswijzigingen WHERE uitgevoerd IS NULL AND geannuleerd IS NULL")).rows[0].n;
+      // Wat aandacht vraagt: de eerstvolgende geplande wijzigingen, accounts
+      // zonder groep (kunnen niets) en accounts die na een week nog nooit
+      // hebben ingelogd (uitnodiging gemist of niet meer nodig).
+      uit.eerstvolgend = (await d.pool.query(
+        `SELECT w.id, w.status, w.ingang, a.id AS account, a.naam FROM statuswijzigingen w JOIN accounts a ON a.id = w.account
+          WHERE w.uitgevoerd IS NULL AND w.geannuleerd IS NULL ORDER BY w.ingang LIMIT 5`,
+      )).rows;
+      uit.zonderGroep = (await d.pool.query(
+        "SELECT count(*)::int AS n FROM accounts a WHERE NOT a.hoofdaccount AND a.status = 'actief' AND NOT EXISTS (SELECT 1 FROM lidmaatschappen l WHERE l.account = a.id)",
+      )).rows[0].n;
+      uit.nooitIngelogd = (await d.pool.query(
+        "SELECT count(*)::int AS n FROM accounts a WHERE NOT a.hoofdaccount AND a.status = 'actief' AND a.aangemaakt < $1 AND NOT EXISTS (SELECT 1 FROM sessies s WHERE s.account = a.id)",
+        [new Date(d.nu().getTime() - 7 * 24 * 3600_000)],
+      )).rows[0].n;
     }
     if (p.rechten.has("audit.view")) {
       uit.audit = (await d.pool.query(
         "SELECT count(*) FILTER (WHERE tijd > $1)::int AS vandaag, count(*) FILTER (WHERE tijd > $1 AND actie IN ('inloggen.mislukt', 'nood.mislukt', 'nood.geblokkeerd'))::int AS mislukt, count(*) FILTER (WHERE tijd > $2 AND actie = 'nood.ingelogd')::int AS nood_week FROM audit",
         [new Date(d.nu().getTime() - 24 * 3600_000), new Date(d.nu().getTime() - 7 * 24 * 3600_000)],
       )).rows[0];
+      // Gebeurtenissen, niet elk API-verzoek (die staan ook in de audit, als "GET /api/…").
+      uit.recent = (await d.pool.query("SELECT id, tijd, email, actie, resultaat FROM audit WHERE actie !~ '^(GET|POST|PUT|PATCH|DELETE) ' ORDER BY id DESC LIMIT 8")).rows;
     }
     if (p.niveau >= 3 && p.rechten.has("accounts.view")) {
       uit.actieveSessies = (await d.pool.query("SELECT count(*)::int AS n FROM sessies WHERE beeindigd IS NULL AND hard_einde > $1", [d.nu()])).rows[0].n;

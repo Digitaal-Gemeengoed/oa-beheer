@@ -121,6 +121,49 @@ test("een statuswijziging kan later ingaan", async () => {
   await vraag(s2, "POST", `/api/accounts/${id.lezer}/status`, { status: "actief", reden: "Toch weer in dienst" });
 });
 
+test("een geplande wijziging annuleren: blijft in de geschiedenis, gaat niet in", async () => {
+  const s = await sessie(id.super);
+  const m = await sessie(id.manager);
+  const ingang = new Date(klok.getTime() + 2 * 3600_000).toISOString();
+  await vraag(s, "POST", `/api/accounts/${id.lezer}/status`, { status: "geblokkeerd", reden: "Verlof, account tijdelijk dicht", ingang });
+  const lijst = (await vraag(m, "GET", "/api/accounts/gepland")).json();
+  assert.equal(lijst.length, 1);
+  assert.equal(lijst[0].naam, "lezer");
+  assert.equal(lijst[0].beheerbaar, true);
+  const dash = (await vraag(s, "GET", "/api/dashboard")).json();
+  assert.equal(dash.gepland, 1);
+  assert.equal(dash.eerstvolgend[0].account, id.lezer);
+  assert.equal((await vraag(m, "POST", `/api/accounts/gepland/${lijst[0].id}/annuleren`, { reden: "kort" })).statusCode, 400);
+  assert.equal((await vraag(m, "POST", `/api/accounts/gepland/${lijst[0].id}/annuleren`, { reden: "Verlof gaat niet door" })).statusCode, 200);
+  assert.equal((await vraag(m, "POST", `/api/accounts/gepland/${lijst[0].id}/annuleren`, { reden: "Nog een keer proberen" })).statusCode, 404);
+  assert.equal((await vraag(m, "GET", "/api/accounts/gepland")).json().length, 0);
+  klok = new Date(klok.getTime() + 3 * 3600_000);
+  const s2 = await sessie(id.super);
+  await vraag(s2, "GET", "/api/ik");
+  assert.equal((await pool.query("SELECT status FROM accounts WHERE id = $1", [id.lezer])).rows[0].status, "actief", "geannuleerd gaat niet in");
+  const w = (await vraag(s2, "GET", `/api/accounts/${id.lezer}`)).json().wijzigingen.find((x: { id: string }) => x.id === lijst[0].id);
+  assert.equal(w.reden_annulering, "Verlof gaat niet door");
+  assert.equal(w.geannuleerd_door, "manager");
+  assert.ok((await pool.query("SELECT 1 FROM audit WHERE actie = 'account.status.geannuleerd'")).rowCount);
+});
+
+test("sessies: overzicht vanaf niveau 3; één sessie beëindigen alleen bij wie je mag beheren", async () => {
+  const s = await sessie(id.super);
+  const m = await sessie(id.manager);
+  const l = await sessie(id.lezer, "Safari op iPhone");
+  assert.equal((await vraag(l, "GET", "/api/sessies")).statusCode, 403);
+  const rijen = (await vraag(m, "GET", "/api/sessies")).json();
+  assert.ok(rijen.every((r: Record<string, unknown>) => !("token_hash" in r)));
+  const vanLezer = rijen.find((r: { naam: string; apparaat: string }) => r.naam === "lezer" && r.apparaat === "Safari op iPhone");
+  const vanSuper = rijen.find((r: { naam: string }) => r.naam === "super");
+  assert.equal(vanLezer.beheerbaar, true);
+  assert.equal(vanSuper.beheerbaar, false);
+  assert.equal((await vraag(m, "POST", `/api/sessies/${vanSuper.id}/beeindigen`, { reden: "Probeer de baas" })).statusCode, 403);
+  assert.equal((await vraag(m, "POST", `/api/sessies/${vanLezer.id}/beeindigen`, { reden: "Telefoon kwijt" })).statusCode, 200);
+  assert.equal((await vraag(l, "GET", "/api/ik")).statusCode, 401);
+  assert.equal((await vraag(s, "GET", "/api/ik")).statusCode, 200);
+});
+
 test("groepen van een account: niet je eigen; alleen wat je zelf mag geven; meteen van kracht", async () => {
   const m = await sessie(id.manager);
   assert.equal((await vraag(m, "PUT", `/api/accounts/${id.manager}/groepen`, { groepen: [groep.Superadmins], reden: "Mezelf promoveren" })).json().fout, "eigen-account");

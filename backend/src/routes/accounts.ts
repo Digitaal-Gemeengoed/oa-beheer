@@ -22,7 +22,7 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
               coalesce(max(g.niveau), 0)::int AS niveau,
               coalesce(array_agg(g.naam ORDER BY g.naam) FILTER (WHERE g.id IS NOT NULL), '{}') AS groepen,
               (SELECT max(laatst_actief) FROM sessies s WHERE s.account = a.id) AS laatst_actief,
-              (SELECT count(*)::int FROM statuswijzigingen w WHERE w.account = a.id AND w.uitgevoerd IS NULL) AS gepland
+              (SELECT count(*)::int FROM statuswijzigingen w WHERE w.account = a.id AND w.uitgevoerd IS NULL AND w.geannuleerd IS NULL) AS gepland
          FROM accounts a LEFT JOIN lidmaatschappen l ON l.account = a.id LEFT JOIN groepen g ON g.id = l.groep
         GROUP BY a.id ORDER BY a.hoofdaccount DESC, a.naam`,
     );
@@ -35,11 +35,14 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
     const a = await laadDoel(d.pool, req.params.id);
     const groepen = (await d.pool.query("SELECT g.id, g.naam, g.niveau FROM lidmaatschappen l JOIN groepen g ON g.id = l.groep WHERE l.account = $1 ORDER BY g.naam", [a.id])).rows;
     const wijzigingen = (await d.pool.query(
-      "SELECT w.status, w.reden, w.ingang, w.uitgevoerd, w.aangemaakt, b.naam AS door FROM statuswijzigingen w JOIN accounts b ON b.id = w.door WHERE w.account = $1 ORDER BY w.ingang DESC LIMIT 50",
+      `SELECT w.id, w.status, w.reden, w.ingang, w.uitgevoerd, w.aangemaakt, b.naam AS door, w.geannuleerd, w.reden_annulering, x.naam AS geannuleerd_door
+         FROM statuswijzigingen w JOIN accounts b ON b.id = w.door LEFT JOIN accounts x ON x.id = w.geannuleerd_door
+        WHERE w.account = $1 ORDER BY w.ingang DESC LIMIT 50`,
       [a.id],
     )).rows;
     const sessies = (await d.pool.query("SELECT count(*)::int AS n FROM sessies WHERE account = $1 AND beeindigd IS NULL AND hard_einde > now()", [a.id])).rows[0].n;
-    return { ...a, groepen, wijzigingen, actieveSessies: sessies, beheerbaar: req.persoon!.rechten.has("accounts.manage") && magBeheren(req.persoon!, a) === null };
+    const laatst = (await d.pool.query("SELECT max(laatst_actief) AS t FROM sessies WHERE account = $1", [a.id])).rows[0].t;
+    return { ...a, groepen, wijzigingen, actieveSessies: sessies, laatst_actief: laatst, beheerbaar: req.persoon!.rechten.has("accounts.manage") && magBeheren(req.persoon!, a) === null };
   });
 
   /** Een account toevoegen. Nooit door zelf aan te melden; de persoon logt in via Keycloak met dit e-mailadres. */
@@ -152,6 +155,83 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
       const n = await beeindigAlle(d.pool, a.id, "door-beheerder", d.nu());
       await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "account.uitgelogd", doel: a.id, ip: req.ip, resultaat: "ok", details: { sessies: n, reden: req.body.reden } });
       return { beeindigd: n };
+    },
+  );
+
+  /** Alle geplande statuswijzigingen die nog niet zijn ingegaan. */
+  app.get("/api/accounts/gepland", async (req) => {
+    vereis(req, "accounts.view");
+    const p = req.persoon!;
+    const r = await d.pool.query(
+      `SELECT w.id, w.status, w.reden, w.ingang, w.aangemaakt, b.naam AS door,
+              a.id AS account, a.naam, a.email, a.hoofdaccount,
+              (SELECT coalesce(max(g.niveau), 0)::int FROM lidmaatschappen l JOIN groepen g ON g.id = l.groep WHERE l.account = a.id) AS niveau
+         FROM statuswijzigingen w JOIN accounts a ON a.id = w.account JOIN accounts b ON b.id = w.door
+        WHERE w.uitgevoerd IS NULL AND w.geannuleerd IS NULL
+        ORDER BY w.ingang`,
+    );
+    return r.rows.map(({ hoofdaccount, niveau, ...w }) => ({ ...w, beheerbaar: p.rechten.has("accounts.manage") && magBeheren(p, { id: w.account, hoofdaccount, niveau }) === null }));
+  });
+
+  /** Een geplande statuswijziging annuleren; de rij blijft, met wie en waarom. */
+  app.post<{ Params: { id: string }; Body: { reden: string } }>(
+    "/api/accounts/gepland/:id/annuleren",
+    { schema: { params: { type: "object", properties: { id: UUID } }, body: { type: "object", required: ["reden"], additionalProperties: false, properties: { reden: REDEN } } } },
+    async (req) => {
+      vereis(req, "accounts.manage");
+      const p = req.persoon!;
+      const w = (await d.pool.query("SELECT id, account, status, ingang FROM statuswijzigingen WHERE id = $1 AND uitgevoerd IS NULL AND geannuleerd IS NULL", [req.params.id])).rows[0];
+      if (!w) throw new AppFout(404, "niet-gevonden", "Deze wijziging is al ingegaan of geannuleerd.");
+      const a = await laadDoel(d.pool, w.account);
+      weigerAls(magBeheren(p, a));
+      const r = await d.pool.query(
+        "UPDATE statuswijzigingen SET geannuleerd = $2, geannuleerd_door = $3, reden_annulering = $4 WHERE id = $1 AND uitgevoerd IS NULL AND geannuleerd IS NULL",
+        [w.id, d.nu(), p.id, req.body.reden],
+      );
+      if (!r.rowCount) throw new AppFout(409, "al-ingegaan", "Deze wijziging is net ingegaan.");
+      await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "account.status.geannuleerd", doel: a.id, ip: req.ip, resultaat: "ok", details: { status: w.status, ingang: new Date(w.ingang).toISOString(), reden: req.body.reden } });
+      return {};
+    },
+  );
+
+  /**
+   * Alle actieve sessies, voor wie accounts mag zien en minstens niveau 3
+   * heeft (zoals het getal op het overzicht). Zonder token.
+   */
+  app.get("/api/sessies", async (req) => {
+    vereis(req, "accounts.view");
+    const p = req.persoon!;
+    if (p.niveau < 3) throw new AppFout(403, "niveau", "Dit overzicht is er vanaf niveau 3.");
+    const r = await d.pool.query(
+      `SELECT s.id, s.apparaat, s.ip, s.aangemaakt, s.laatst_actief, s.hard_einde, s.nood,
+              a.id AS account, a.naam, a.email, a.hoofdaccount,
+              (SELECT coalesce(max(g.niveau), 0)::int FROM lidmaatschappen l JOIN groepen g ON g.id = l.groep WHERE l.account = a.id) AS niveau
+         FROM sessies s JOIN accounts a ON a.id = s.account
+        WHERE s.beeindigd IS NULL AND s.hard_einde > $1
+        ORDER BY s.laatst_actief DESC`,
+      [d.nu()],
+    );
+    return r.rows.map(({ hoofdaccount, niveau, ...s }) => ({
+      ...s,
+      eigen: s.account === p.id,
+      beheerbaar: p.rechten.has("accounts.manage") && magBeheren(p, { id: s.account, hoofdaccount, niveau }) === null,
+    }));
+  });
+
+  /** Eén sessie van iemand anders beëindigen (een verloren of gedeelde laptop). */
+  app.post<{ Params: { id: string }; Body: { reden: string } }>(
+    "/api/sessies/:id/beeindigen",
+    { schema: { params: { type: "object", properties: { id: UUID } }, body: { type: "object", required: ["reden"], additionalProperties: false, properties: { reden: REDEN } } } },
+    async (req) => {
+      vereis(req, "accounts.manage");
+      const p = req.persoon!;
+      const s = (await d.pool.query("SELECT id, account, apparaat FROM sessies WHERE id = $1 AND beeindigd IS NULL", [req.params.id])).rows[0];
+      if (!s) throw new AppFout(404, "niet-gevonden", "Deze sessie is al beëindigd.");
+      const a = await laadDoel(d.pool, s.account);
+      weigerAls(magBeheren(p, a));
+      await d.pool.query("UPDATE sessies SET beeindigd = $2, reden_einde = 'door-beheerder' WHERE id = $1 AND beeindigd IS NULL", [s.id, d.nu()]);
+      await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "sessie.beeindigd", doel: a.id, ip: req.ip, resultaat: "ok", details: { apparaat: s.apparaat, reden: req.body.reden } });
+      return {};
     },
   );
 }
