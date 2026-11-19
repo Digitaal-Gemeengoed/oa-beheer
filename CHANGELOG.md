@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## 0.14.0 — 2026-11-19
+
+**Ondersteunende stukken: categorieën, toetsvragen en een opzet als vertrekpunt.**
+- Stap 4 van het classificatiemodel: per categorie code, naam, wat eronder valt en een termijn; een lijst toetsvragen; omschrijving en grondslag. Zonder categorieën blijft het één termijn.
+- Knop **Opzet laden als vertrekpunt**: vijf categorieën en vijf toetsvragen (dezelfde als `OPZET_ONDERSTEUNEND` in oa-contract), om aan te passen en te publiceren.
+- Het voorbeeld toont de toetsvragen met het vinkje en daarna de categorieën, zoals in het paneel. De versiekaart toont categorieën en toetsvragen.
+- De audit noemt per categorie code en termijn en het aantal toetsvragen. Wijzigen vraagt, zoals eerder, `bewaartermijn.afwijken`.
+
 ## 0.13.0 — 2026-11-19
 
 Classificatiemodel. Vereist opendop-mini 0.14.0 op VPS 2.

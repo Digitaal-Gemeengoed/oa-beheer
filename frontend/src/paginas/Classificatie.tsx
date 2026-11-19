@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { boom, suggesties, zoek } from "../selectielijst";
+import { OPZET, steunKlassen, volgendeCode, type Ondersteunend } from "../ondersteunend";
 import {
   Alert, Checkbox, FormField, FormLabel, Heading1, Heading2, Heading3, Paragraph, PrimaryActionButton, SecondaryActionButton,
   Select, SelectOption, StatusBadge, SubtleButton, Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow, Textarea, Textbox,
@@ -43,7 +44,6 @@ interface Config {
   zoektermen?: { resultaat: string; termen: string[] }[];
   ondersteunend?: Ondersteunend | null;
 }
-interface Ondersteunend { omschrijving: string; bewaartermijn: string; grondslag: string }
 interface Model { versie: number; config: Config; gepubliceerd: string; door: string | null; ingang?: string; ingetrokken?: Intrekking | null }
 interface Stand {
   aan: boolean;
@@ -134,6 +134,22 @@ const T = {
   ondersteunendGrondslag: ["Grondslag", "Basis"],
   ondersteunendGrondslagUitleg: ["Het besluit of de richtlijn van de gemeente.", "The municipality's decision or guideline."],
   ondersteunendGrondslagVoorbeeld: ["Richtlijn opschonen informatie 2026, art. 3", "Guideline on information clean-up 2026, art. 3"],
+  opzetLaden: ["Opzet laden als vertrekpunt", "Load the draft set as a starting point"],
+  opzetUitleg: ["Vijf categorieën en vijf toetsvragen naar de Archiefwet, de Handreiking Selectielijst 2020 en de Australische Normal Administrative Practice. Een vertrekpunt: pas de termijnen, voorbeelden en grondslag aan voor je gemeente. Laden vervangt wat hieronder staat.", "Five categories and five test questions after the Dutch Archives Act, the VNG guidance on the 2020 retention schedule and the Australian Normal Administrative Practice. A starting point: adjust the periods, examples and basis for your municipality. Loading replaces what is below."],
+  opzetGeladen: ["De opzet is geladen. Pas aan wat nodig is en publiceer.", "The draft set is loaded. Adjust what is needed and publish."],
+  categorieen: ["Categorieën", "Categories"],
+  categorieenUitleg: ["De medewerker kiest een categorie; elke categorie heeft haar eigen termijn, gerekend vanaf het classificeren. Zonder categorieën is er één soort ondersteunend stuk met één termijn.", "The employee chooses a category; each has its own period, counted from classification. Without categories there is one kind of supporting document with one period."],
+  code: ["Code", "Code"],
+  naamKop: ["Naam", "Name"],
+  voorbeelden: ["Wat valt eronder", "What falls under it"],
+  categorieToevoegen: ["Categorie toevoegen", "Add category"],
+  toetsvragen: ["Toetsvragen", "Test questions"],
+  toetsvragenUitleg: ["Vragen waarop het antwoord nee moet zijn. De medewerker bevestigt in het paneel dat geen ervan geldt, voordat hij een categorie kiest. Bij ja hoort het stuk bij een zaak of een klasse uit de selectielijst.", "Questions to which the answer must be no. In the panel the employee confirms none applies before choosing a category. If one does, the document belongs to a case or a class from the schedule."],
+  toetsvraagToevoegen: ["Toetsvraag toevoegen", "Add test question"],
+  geenToetsvragen: ["Geen toetsvragen: de medewerker kiest meteen een categorie.", "No test questions: the employee chooses a category straight away."],
+  nietOndersteunend: ["Is het antwoord op een van deze vragen ja, dan is het stuk niet ondersteunend.", "If the answer to any of these is yes, the document is not supporting."],
+  geenVanDeze: ["Geen van deze vragen geldt voor dit stuk", "None of these questions applies to this document"],
+  naClassificeren: ["na het classificeren", "after classification"],
   eenheid: ["Eenheid", "Unit"],
   maanden: ["maanden", "months"],
   jaarEenheid: ["jaar", "years"],
@@ -313,11 +329,24 @@ function VersieBekijken({ ik, s, versie, herlaad }: { ik: Ik; s: Stand; versie: 
             <section className="ab-kaart ab-blok">
               <Heading2>{tt("stapOndersteunend").replace(/^\d+\. /, "")}</Heading2>
               {v.config.ondersteunend ? (
-                <dl className="ab-feiten">
-                  <div><dt>{tt("ondersteunendOms")}</dt><dd>{v.config.ondersteunend.omschrijving}</dd></div>
-                  <div><dt>{tt("ondersteunendTermijn")}</dt><dd>{duur(v.config.ondersteunend.bewaartermijn)} {taal() === "en" ? "after classification" : "na het classificeren"}</dd></div>
-                  <div><dt>{tt("ondersteunendGrondslag")}</dt><dd>{v.config.ondersteunend.grondslag}</dd></div>
-                </dl>
+                <>
+                  <dl className="ab-feiten">
+                    <div><dt>{tt("ondersteunendOms")}</dt><dd>{v.config.ondersteunend.omschrijving}</dd></div>
+                    {!v.config.ondersteunend.categorieen?.length && <div><dt>{tt("ondersteunendTermijn")}</dt><dd>{duur(v.config.ondersteunend.bewaartermijn)} {tt("naClassificeren")}</dd></div>}
+                    <div><dt>{tt("ondersteunendGrondslag")}</dt><dd>{v.config.ondersteunend.grondslag}</dd></div>
+                  </dl>
+                  {!!v.config.ondersteunend.categorieen?.length && (
+                    <ul className="ab-lijst">
+                      {v.config.ondersteunend.categorieen.map((k) => <li key={k.code}><b>{k.code}</b> {k.naam} · {duur(k.bewaartermijn)} {tt("naClassificeren")}</li>)}
+                    </ul>
+                  )}
+                  {!!v.config.ondersteunend.toetsvragen?.length && (
+                    <>
+                      <Heading3>{tt("toetsvragen")}</Heading3>
+                      <ol className="ab-lijst">{v.config.ondersteunend.toetsvragen.map((q, i) => <li key={i}>{q}</li>)}</ol>
+                    </>
+                  )}
+                </>
               ) : <Paragraph className="ab-klein">{taal() === "en" ? "Not allowed in this version." : "Niet toegestaan in deze versie."}</Paragraph>}
             </section>
             <section className="ab-kaart ab-blok">
@@ -678,45 +707,11 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
           {tt("ondersteunendAan")}
         </label>
         {config.ondersteunend && (
-          <div className="md-bewerk cl-ondersteunend">
-            <FormField label={<FormLabel htmlFor="cl-o-oms">{tt("ondersteunendOms")}</FormLabel>} description={tt("ondersteunendOmsUitleg")}>
-              <Textarea id="cl-o-oms" rows={3} maxLength={1000} disabled={!magAfwijken} value={config.ondersteunend.omschrijving} onChange={(e) => zetConfig((c) => ({ ...c, ondersteunend: { ...c.ondersteunend!, omschrijving: e.target.value } }))} />
-            </FormField>
-            <div className="md-twee">
-              <FormField label={<FormLabel htmlFor="cl-o-n">{tt("ondersteunendTermijn")}</FormLabel>} description={tt("ondersteunendTermijnUitleg")}>
-                <div className="cl-duur">
-                  <Textbox
-                    id="cl-o-n"
-                    type="number"
-                    min={1}
-                    max={120}
-                    disabled={!magAfwijken}
-                    value={/^P(\d+)[YM]$/.exec(config.ondersteunend.bewaartermijn)?.[1] ?? ""}
-                    onChange={(e) => {
-                      const eenheid = config.ondersteunend!.bewaartermijn.endsWith("M") ? "M" : "Y";
-                      const n = Math.max(1, Math.round(Number(e.target.value) || 1));
-                      zetConfig((c) => ({ ...c, ondersteunend: { ...c.ondersteunend!, bewaartermijn: `P${n}${eenheid}` } }));
-                    }}
-                  />
-                  <Select
-                    aria-label={tt("eenheid")}
-                    disabled={!magAfwijken}
-                    value={config.ondersteunend.bewaartermijn.endsWith("M") ? "M" : "Y"}
-                    onChange={(e) => {
-                      const n = /^P(\d+)[YM]$/.exec(config.ondersteunend!.bewaartermijn)?.[1] ?? "1";
-                      zetConfig((c) => ({ ...c, ondersteunend: { ...c.ondersteunend!, bewaartermijn: `P${n}${e.target.value}` } }));
-                    }}
-                  >
-                    <SelectOption value="M">{tt("maanden")}</SelectOption>
-                    <SelectOption value="Y">{tt("jaarEenheid")}</SelectOption>
-                  </Select>
-                </div>
-              </FormField>
-              <FormField label={<FormLabel htmlFor="cl-o-g">{tt("ondersteunendGrondslag")}</FormLabel>} description={tt("ondersteunendGrondslagUitleg")}>
-                <Textbox id="cl-o-g" maxLength={300} disabled={!magAfwijken} value={config.ondersteunend.grondslag} placeholder={tt("ondersteunendGrondslagVoorbeeld")} onChange={(e) => zetConfig((c) => ({ ...c, ondersteunend: { ...c.ondersteunend!, grondslag: e.target.value } }))} />
-              </FormField>
-            </div>
-          </div>
+          <OndersteunendBewerken
+            o={config.ondersteunend}
+            kan={magAfwijken}
+            zet={(f) => zetConfig((c) => ({ ...c, ondersteunend: c.ondersteunend ? f(c.ondersteunend) : c.ondersteunend }))}
+          />
         )}
         {(problemen ?? []).filter((p) => p.sleutel === "ondersteunend").map((p, i) => <p key={i} className={`md-probleem ${p.ernst}`}>{p.melding}</p>)}
       </section>
@@ -810,9 +805,13 @@ function Voorbeeld({ config, lijst, versie }: { config: Config; lijst: Selectiel
       return a ? { ...r, ...z, waardering: a.waardering ?? r.waardering, bewaartermijn: (a.waardering ?? r.waardering) === "blijvend-bewaren" ? undefined : (a.bewaartermijn ?? r.bewaartermijn), eigen: true } : { ...r, ...z, eigen: false };
     });
   }, [lijst, config.uitgezet, config.zoektermen, afw]);
-  const steun: PvKlasse | null = config.ondersteunend
-    ? { id: "ondersteunend", procestype: 0, generiek: null, naam: "Ondersteunend", omschrijving: en ? "without archival value" : "zonder archiefwaarde", waardering: "vernietigen", procestermijn: "nihil", bewaartermijn: config.ondersteunend.bewaartermijn, toelichting: config.ondersteunend.omschrijving, eigen: false }
-    : null;
+  // Ondersteunend: per categorie een klasse (ondersteunend.O3), of één zonder categorieën.
+  const steun = useMemo<(PvKlasse & { code: string | null })[]>(
+    () => steunKlassen(config.ondersteunend).map((k) => ({ id: k.id, code: k.code, procestype: 0, generiek: null, naam: k.naam, omschrijving: k.code ?? "", waardering: "vernietigen", procestermijn: "nihil", bewaartermijn: k.bewaartermijn, toelichting: k.voorbeelden, eigen: false })),
+    [config.ondersteunend],
+  );
+  const vragen = config.ondersteunend?.toetsvragen ?? [];
+  const [bevestigd, zetBevestigd] = useState(false);
   const takken = useMemo(() => boom(beschikbaar, lijst.procestypen), [beschikbaar, lijst]);
   const pt = useMemo(() => new Map(lijst.procestypen.map((p) => [p.nummer, p])), [lijst]);
   const [tekst, zetTekst] = useState(VOORBEELDTEKST);
@@ -821,7 +820,10 @@ function Voorbeeld({ config, lijst, versie }: { config: Config; lijst: Selectiel
   const gevonden = useMemo(() => zoek(beschikbaar, lijst.procestypen, vraag), [beschikbaar, lijst, vraag]);
   const [pad, zetPad] = useState<{ procestype: number | null; groep: string | null }>({ procestype: null, groep: null });
   const [keuze, zetKeuze] = useState<string | null>(null);
-  const gekozen = (keuze === "ondersteunend" ? steun : beschikbaar.find((r) => r.id === keuze)) ?? null;
+  const isSteun = (id: string | null | undefined) => !!id && (id === "ondersteunend" || id.startsWith("ondersteunend."));
+  const gekozenSteun = steun.find((k) => k.id === keuze) ?? null;
+  const gekozen: PvKlasse | null = (isSteun(keuze) ? gekozenSteun : beschikbaar.find((r) => r.id === keuze)) ?? null;
+  const steunKop = (k: { code: string | null; naam: string }) => (k.code ? `${en ? "Supporting" : "Ondersteunend"} · ${k.code} ${k.naam}` : en ? "Supporting, without archival value" : "Ondersteunend, zonder archiefwaarde");
   const kies = (r: PvKlasse) => {
     zetKeuze(r.id);
     if (vraag) {
@@ -853,8 +855,8 @@ function Voorbeeld({ config, lijst, versie }: { config: Config; lijst: Selectiel
 
   const bewaren = !gekozen
     ? ""
-    : gekozen.id === "ondersteunend"
-      ? `${en ? "Supporting: destroy" : "Ondersteunend: vernietigen"} ${duur(gekozen.bewaartermijn)} ${en ? "after classification" : "na het classificeren"} (${config.ondersteunend?.grondslag || "—"}).`
+    : gekozenSteun
+      ? `${en ? "Destroy" : "Vernietigen"} ${duur(gekozen.bewaartermijn)} ${tt("naClassificeren")} (${config.ondersteunend?.grondslag || "—"}).`
     : gekozen.waardering === "blijvend-bewaren"
       ? en ? "Keep permanently: the document goes to the archive." : "Blijvend bewaren: het stuk gaat naar het archief."
       : `${en ? "Destroy" : "Vernietigen"} ${gekozen.bewaartermijn ? (en ? `after ${duur(gekozen.bewaartermijn)}` : `na ${duur(gekozen.bewaartermijn)}`) : `(${gekozen.bewaartermijnTekst ?? "zie toelichting"})`}, ${
@@ -907,26 +909,41 @@ function Voorbeeld({ config, lijst, versie }: { config: Config; lijst: Selectiel
                 </ul>
               </>
             )}
-            {steun && (
+            {steun.length > 0 && (
               <>
                 <div className="cl-pv-kop">{en ? "Not part of a process?" : "Geen onderdeel van een proces?"}</div>
-                <p className="md-paneel-hulp">{steun.toelichting}</p>
-                <ul className="cl-pv-klassen">
-                  <li>
-                    <button type="button" className={keuze === "ondersteunend" ? "gekozen" : ""} aria-pressed={keuze === "ondersteunend"} onClick={() => zetKeuze("ondersteunend")}>
-                      <span><b>{en ? "Supporting" : "Ondersteunend"}</b>, {steun.omschrijving}</span>
-                      <span className="cl-pv-klein">{en ? "destroy" : "vernietigen"} {duur(steun.bewaartermijn)} {en ? "after classification" : "na het classificeren"}{config.ondersteunend?.grondslag ? ` · ${config.ondersteunend.grondslag}` : ""}</span>
-                    </button>
-                  </li>
-                </ul>
+                <p className="md-paneel-hulp">{config.ondersteunend?.omschrijving}</p>
+                {vragen.length > 0 && (
+                  <div className="cl-pv-toets">
+                    <p className="md-paneel-hulp"><b>{en ? "Check first." : "Eerst nagaan."}</b> {tt("nietOndersteunend")}</p>
+                    <ol>{vragen.map((q, i) => <li key={i}>{q || "…"}</li>)}</ol>
+                    <label className="cl-pv-vink">
+                      <input type="checkbox" checked={bevestigd} onChange={(e) => { zetBevestigd(e.target.checked); if (!e.target.checked && isSteun(keuze)) zetKeuze(null); }} />
+                      <span>{tt("geenVanDeze")}</span>
+                    </label>
+                  </div>
+                )}
+                {(bevestigd || vragen.length === 0) && (
+                  <ul className="cl-pv-klassen">
+                    {steun.map((k) => (
+                      <li key={k.id}>
+                        <button type="button" className={keuze === k.id ? "gekozen" : ""} aria-pressed={keuze === k.id} onClick={() => zetKeuze(k.id)}>
+                          <span>{k.code ? <><b>{k.code}</b> {k.naam || "…"}</> : <><b>{en ? "Supporting" : "Ondersteunend"}</b>, {en ? "without archival value" : "zonder archiefwaarde"}</>}</span>
+                          {k.code && <span className="cl-pv-klein">{k.toelichting}</span>}
+                          <span className="cl-pv-klein">{en ? "destroy" : "vernietigen"} {duur(k.bewaartermijn)} {tt("naClassificeren")}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </>
             )}
 
             {gekozen && (
               <div className="cl-pv-gekozen">
-                <div className="cl-pv-titel">{gekozen.id === "ondersteunend" ? (en ? "Supporting, without archival value" : "Ondersteunend, zonder archiefwaarde") : `${gekozen.id} ${gekozen.naam}`}</div>
-                {gekozen.id === "ondersteunend"
-                  ? <div className="md-paneel-hulp">{en ? "Basis" : "Grondslag"}: {config.ondersteunend?.grondslag || "—"}</div>
+                <div className="cl-pv-titel">{gekozenSteun ? steunKop(gekozenSteun) : `${gekozen.id} ${gekozen.naam}`}</div>
+                {gekozenSteun
+                  ? <div className="md-paneel-hulp">{gekozenSteun.code && <>{gekozenSteun.toelichting} </>}{en ? "Basis" : "Grondslag"}: {config.ondersteunend?.grondslag || "—"}</div>
                   : <div className="md-paneel-hulp">{gekozen.procestype}. {pt.get(gekozen.procestype)?.naam}{gekozen.omschrijving ? ` · ${gekozen.omschrijving}` : ""}</div>}
                 <span className={`cl-pv-badge${gekozen.waardering === "blijvend-bewaren" ? " bewaren" : ""}`}>{termijn(gekozen)}</span>
                 {gekozen.eigen && <div className="md-paneel-hulp">{en ? "Deviation from the schedule" : "Afwijking van de selectielijst"}: {afw.get(gekozen.id)?.reden || "—"}</div>}
@@ -1050,6 +1067,127 @@ function TermenBewerken({ id, termen, zet }: { id: string; termen: string[]; zet
       <FormField label={<FormLabel htmlFor={`cl-z-${id}`}>{tt("zoektermen")}</FormLabel>} description={tt("zoektermenUitleg")}>
         <Textbox id={`cl-z-${id}`} value={tekst} maxLength={900} placeholder="collegevoorstel, nota" onChange={(e) => { zetTekst(e.target.value); zet(lees(e.target.value)); }} />
       </FormField>
+    </div>
+  );
+}
+
+/** Een termijn in maanden of jaren, als ISO 8601-duur (P6M, P1Y). */
+function DuurVeld({ id, waarde, zet, disabled }: { id: string; waarde: string; zet: (d: string) => void; disabled: boolean }) {
+  const n = /^P(\d+)[YM]$/.exec(waarde)?.[1] ?? "";
+  const eenheid = waarde.endsWith("M") ? "M" : "Y";
+  return (
+    <div className="cl-duur">
+      <Textbox id={id} type="number" min={1} max={120} disabled={disabled} value={n} onChange={(e) => zet(`P${Math.max(1, Math.round(Number(e.target.value) || 1))}${eenheid}`)} />
+      <Select aria-label={tt("eenheid")} disabled={disabled} value={eenheid} onChange={(e) => zet(`P${n || "1"}${e.target.value}`)}>
+        <SelectOption value="M">{tt("maanden")}</SelectOption>
+        <SelectOption value="Y">{tt("jaarEenheid")}</SelectOption>
+      </Select>
+    </div>
+  );
+}
+
+/**
+ * Ondersteunende stukken: een omschrijving, de grondslag, de categorieën met
+ * elk een termijn, en de toetsvragen. Of één termijn, zonder categorieën.
+ */
+function OndersteunendBewerken({ o, kan, zet }: { o: Ondersteunend; kan: boolean; zet: (f: (o: Ondersteunend) => Ondersteunend) => void }) {
+  const [geladen, zetGeladen] = useState(false);
+  const cats = o.categorieen ?? [];
+  const vragen = o.toetsvragen ?? [];
+  const zetCat = (i: number, k: Partial<NonNullable<Ondersteunend["categorieen"]>[number]>) =>
+    zet((x) => ({ ...x, categorieen: (x.categorieen ?? []).map((c, j) => (j === i ? { ...c, ...k } : c)) }));
+  const zetVraag = (i: number, v: string) => zet((x) => ({ ...x, toetsvragen: (x.toetsvragen ?? []).map((q, j) => (j === i ? v : q)) }));
+  return (
+    <div className="md-bewerk cl-ondersteunend">
+      {kan && (
+        <div className="cl-opzet">
+          <SecondaryActionButton
+            type="button"
+            onClick={() => {
+              zet(() => structuredClone(OPZET));
+              zetGeladen(true);
+            }}
+          >
+            {tt("opzetLaden")}
+          </SecondaryActionButton>
+          <Paragraph className="ab-klein">{geladen ? tt("opzetGeladen") : tt("opzetUitleg")}</Paragraph>
+        </div>
+      )}
+      <FormField label={<FormLabel htmlFor="cl-o-oms">{tt("ondersteunendOms")}</FormLabel>} description={tt("ondersteunendOmsUitleg")}>
+        <Textarea id="cl-o-oms" rows={2} maxLength={1000} disabled={!kan} value={o.omschrijving} onChange={(e) => zet((x) => ({ ...x, omschrijving: e.target.value }))} />
+      </FormField>
+      <FormField label={<FormLabel htmlFor="cl-o-g">{tt("ondersteunendGrondslag")}</FormLabel>} description={tt("ondersteunendGrondslagUitleg")}>
+        <Textbox id="cl-o-g" maxLength={300} disabled={!kan} value={o.grondslag} placeholder={tt("ondersteunendGrondslagVoorbeeld")} onChange={(e) => zet((x) => ({ ...x, grondslag: e.target.value }))} />
+      </FormField>
+
+      <Heading3>{tt("categorieen")}</Heading3>
+      <Paragraph className="ab-klein">{tt("categorieenUitleg")}</Paragraph>
+      {cats.length === 0 ? (
+        <FormField label={<FormLabel htmlFor="cl-o-n">{tt("ondersteunendTermijn")}</FormLabel>} description={tt("ondersteunendTermijnUitleg")}>
+          <DuurVeld id="cl-o-n" waarde={o.bewaartermijn ?? "P1Y"} disabled={!kan} zet={(d) => zet((x) => ({ ...x, bewaartermijn: d }))} />
+        </FormField>
+      ) : (
+        <ol className="cl-cats">
+          {cats.map((k, i) => (
+            <li key={i} className="cl-cat">
+              <div className="cl-cat-kop">
+                <FormField label={<FormLabel htmlFor={`cl-c-${i}-code`}>{tt("code")}</FormLabel>}>
+                  <Textbox id={`cl-c-${i}-code`} className="cl-cat-code" maxLength={6} disabled={!kan} value={k.code} onChange={(e) => zetCat(i, { code: e.target.value.toUpperCase() })} />
+                </FormField>
+                <FormField label={<FormLabel htmlFor={`cl-c-${i}-naam`}>{tt("naamKop")}</FormLabel>}>
+                  <Textbox id={`cl-c-${i}-naam`} maxLength={100} disabled={!kan} value={k.naam} onChange={(e) => zetCat(i, { naam: e.target.value })} />
+                </FormField>
+                <FormField label={<FormLabel htmlFor={`cl-c-${i}-n`}>{tt("ondersteunendTermijn")}</FormLabel>}>
+                  <DuurVeld id={`cl-c-${i}-n`} waarde={k.bewaartermijn} disabled={!kan} zet={(d) => zetCat(i, { bewaartermijn: d })} />
+                </FormField>
+              </div>
+              <FormField label={<FormLabel htmlFor={`cl-c-${i}-vb`}>{tt("voorbeelden")}</FormLabel>}>
+                <Textarea id={`cl-c-${i}-vb`} rows={2} maxLength={1000} disabled={!kan} value={k.voorbeelden} onChange={(e) => zetCat(i, { voorbeelden: e.target.value })} />
+              </FormField>
+              {kan && (
+                <button type="button" className="ab-linkknop ab-rood" onClick={() => zet((x) => {
+                  const rest = (x.categorieen ?? []).filter((_, j) => j !== i);
+                  return { ...x, categorieen: rest, ...(rest.length ? {} : { bewaartermijn: x.bewaartermijn ?? k.bewaartermijn }) };
+                })}>
+                  {tt("verwijder")} {k.code}
+                </button>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+      {kan && (
+        <SubtleButton type="button" onClick={() => zet((x) => {
+          const { bewaartermijn, ...rest } = x;
+          return { ...rest, categorieen: [...(x.categorieen ?? []), { code: volgendeCode(x), naam: "", voorbeelden: "", bewaartermijn: bewaartermijn ?? "P1Y" }] };
+        })}>
+          + {tt("categorieToevoegen")}
+        </SubtleButton>
+      )}
+
+      <Heading3>{tt("toetsvragen")}</Heading3>
+      <Paragraph className="ab-klein">{tt("toetsvragenUitleg")}</Paragraph>
+      {vragen.length === 0 ? (
+        <Paragraph className="ab-klein">{tt("geenToetsvragen")}</Paragraph>
+      ) : (
+        <ol className="cl-vragen">
+          {vragen.map((v, i) => (
+            <li key={i}>
+              <Textarea aria-label={`${tt("toetsvragen")} ${i + 1}`} rows={2} maxLength={300} disabled={!kan} value={v} onChange={(e) => zetVraag(i, e.target.value)} />
+              {kan && (
+                <button type="button" className="ab-linkknop ab-rood" aria-label={`${tt("verwijder")} ${i + 1}`} onClick={() => zet((x) => ({ ...x, toetsvragen: (x.toetsvragen ?? []).filter((_, j) => j !== i) }))}>
+                  {tt("verwijder")}
+                </button>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+      {kan && (
+        <SubtleButton type="button" onClick={() => zet((x) => ({ ...x, toetsvragen: [...(x.toetsvragen ?? []), ""] }))}>
+          + {tt("toetsvraagToevoegen")}
+        </SubtleButton>
+      )}
     </div>
   );
 }

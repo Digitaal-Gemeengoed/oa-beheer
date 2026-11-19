@@ -42,7 +42,13 @@ interface Config {
   vergrendelBij: string[];
   termijnStartBij: string;
   zoektermen?: { resultaat: string; termen: string[] }[];
-  ondersteunend?: { omschrijving: string; bewaartermijn: string; grondslag: string } | null;
+  ondersteunend?: {
+    omschrijving: string;
+    bewaartermijn?: string;
+    grondslag: string;
+    categorieen?: { code: string; naam: string; voorbeelden: string; bewaartermijn: string }[];
+    toetsvragen?: string[];
+  } | null;
 }
 
 const CONFIG = {
@@ -110,7 +116,17 @@ export async function classificatieRoutes(app: FastifyInstance): Promise<void> {
         ...(c.naam?.trim() ? { naam: c.naam.trim() } : {}),
         uitgezet: c.uitgezet?.length ?? 0,
         zoektermen: (c.zoektermen ?? []).reduce((n, z) => n + z.termen.length, 0),
-        ...(c.ondersteunend ? { ondersteunend: { bewaartermijn: c.ondersteunend.bewaartermijn, grondslag: c.ondersteunend.grondslag } } : {}),
+        ...(c.ondersteunend
+          ? {
+              ondersteunend: {
+                ...(c.ondersteunend.categorieen?.length
+                  ? { categorieen: c.ondersteunend.categorieen.map((k) => `${k.code} ${k.bewaartermijn}`) }
+                  : { bewaartermijn: c.ondersteunend.bewaartermijn }),
+                toetsvragen: c.ondersteunend.toetsvragen?.length ?? 0,
+                grondslag: c.ondersteunend.grondslag,
+              },
+            }
+          : {}),
         afwijkingen: c.afwijkingen?.length ?? 0,
         attributen: c.attributen.length,
         vergrendelBij: c.vergrendelBij,

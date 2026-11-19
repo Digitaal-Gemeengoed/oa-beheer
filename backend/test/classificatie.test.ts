@@ -97,4 +97,10 @@ test("ondersteunende stukken vragen ook bewaartermijn.afwijken; zoektermen niet"
   const a = await pool.query("SELECT details FROM audit WHERE actie = 'classificatiemodel.gepubliceerd' AND resultaat = 'ok' ORDER BY id DESC LIMIT 1");
   assert.equal(a.rows[0].details.ondersteunend.bewaartermijn, "P1Y");
   assert.equal(a.rows[0].details.zoektermen, 1);
+  // Categorieën erbij: weer een wijziging van ondersteunend, en de audit noemt code en termijn.
+  const metCat = { ...termen, ondersteunend: { omschrijving: "Kopieën en kladversies", grondslag: "Richtlijn 2026", categorieen: [{ code: "O3", naam: "Tussenversie", voorbeelden: "Versies binnen het team", bewaartermijn: "P6M" }], toetsvragen: ["Staat er een besluit in?"] } };
+  assert.equal((await vraag(await sessie(id.data), "POST", "/api/classificatie/publiceer", { config: metCat, reden: "Categorieën" })).statusCode, 403);
+  assert.equal((await vraag(await sessie(id.archief), "POST", "/api/classificatie/publiceer", { config: metCat, reden: "Categorieën" })).statusCode, 200);
+  const b = await pool.query("SELECT details FROM audit WHERE actie = 'classificatiemodel.gepubliceerd' AND resultaat = 'ok' ORDER BY id DESC LIMIT 1");
+  assert.deepEqual(b.rows[0].details.ondersteunend, { categorieen: ["O3 P6M"], toetsvragen: 1, grondslag: "Richtlijn 2026" });
 });

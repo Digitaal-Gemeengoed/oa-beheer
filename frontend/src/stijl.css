@@ -629,3 +629,24 @@ a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rg
 .cl-ondersteunend { margin-top: 8px; }
 .cl-duur { display: flex; gap: 8px; }
 .cl-duur .utrecht-textbox { max-width: 110px; }
+
+/* Ondersteunende stukken: opzet, categorieën en toetsvragen */
+.cl-opzet { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 12px; margin-bottom: 12px; border-radius: 8px; background: var(--ab-blauw-zacht); border: 1px solid var(--ab-blauw-licht); }
+.cl-opzet p { margin: 0; flex: 1 1 260px; }
+.cl-ondersteunend h3 { margin: 16px 0 4px; font-size: 1rem; }
+.cl-cats { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.cl-cat { border: 1px solid var(--ab-rand); border-radius: 8px; padding: 10px 12px; background: var(--ab-kaart); display: flex; flex-direction: column; gap: 4px; }
+.cl-cat-kop { display: grid; grid-template-columns: 90px minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+.cl-cat-kop .utrecht-form-field { margin: 0; }
+.cl-cat-code { max-width: 80px; font-family: ui-monospace, monospace; }
+.cl-cat .ab-linkknop { align-self: flex-end; }
+@media (max-width: 640px) { .cl-cat-kop { grid-template-columns: 1fr; } }
+.cl-vragen { margin: 8px 0; padding-inline-start: 1.5em; display: flex; flex-direction: column; gap: 6px; }
+.cl-vragen li { display: flex; gap: 8px; align-items: flex-start; }
+.cl-vragen li::marker { font-weight: 600; }
+.cl-vragen .utrecht-textarea, .cl-vragen textarea { flex: 1 1 auto; min-width: 0; width: auto; }
+.cl-vragen .ab-linkknop { flex: none; margin-top: 6px; }
+.cl-pv-toets { border: 1px solid var(--ab-rand); border-radius: 6px; padding: 6px 8px; margin: 4px 0 6px; background: #fafbfd; }
+.cl-pv-toets ol { margin: 4px 0 6px; padding-inline-start: 1.3em; font-size: 12px; display: flex; flex-direction: column; gap: 2px; }
+.cl-pv-vink { display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.cl-pv-vink input { margin-top: 2px; }
