@@ -157,6 +157,12 @@ test("plannen en intrekken: de ingangsdatum gaat mee naar het platform; intrekke
   const b = await pool.query("SELECT doel, resultaat FROM audit WHERE actie = 'metadatamodel.ingetrokken' ORDER BY id");
   assert.deepEqual(b.rows.map((x) => x.resultaat), ["geweigerd", "ok"]);
   assert.equal(b.rows[1].doel, `document versie ${v}`);
+  // Een geplande versie wijzigen: het nummer van de geplande gaat mee als vervangt, ook in de audit.
+  const w = await vraag(app, ib, "POST", "/api/metadatamodel/publiceer", { config, reden: "Veld toegevoegd voor de ingang", ingang, vervangt: 7 });
+  assert.equal(w.statusCode, 200, w.body);
+  assert.equal((aanroepen.at(-1)!.lichaam as { vervangt: number }).vervangt, 7);
+  const c = await pool.query("SELECT details FROM audit WHERE actie = 'metadatamodel.gepubliceerd' ORDER BY id DESC LIMIT 1");
+  assert.equal(c.rows[0].details.vervangt, 7);
 });
 
 test("anonimiseren, kwaliteit: alleen met anonimiseren.view; de vraag gaat door naar het platform", async () => {

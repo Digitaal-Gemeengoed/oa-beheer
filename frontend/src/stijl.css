@@ -575,3 +575,19 @@ a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rg
 .ab-onopgeslagen p { margin: 0; }
 .ab-rood { color: var(--ab-rood); }
 .ab-linkknop.ab-rood:hover { color: #9f2a21; }
+
+/* Voorbeeld van het paneel Classificeren */
+.cl-paneel .cl-pv-kop { font-weight: 700; margin: 6px 0 4px; }
+.cl-pv-klassen { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.cl-pv-klassen button { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: start; font: inherit; color: inherit; background: #fff; border: 1px solid #c8c8c8; border-radius: 2px; padding: 6px 8px; cursor: pointer; }
+.cl-pv-klassen button:hover { border-color: #1d1d1b; }
+.cl-pv-klassen button.gekozen { border: 2px solid #1d1d1b; padding: 5px 7px; background: #f4f4f4; }
+.cl-pv-klein { color: #555; font-size: 0.78rem; }
+.cl-pv-gekozen { margin-top: 10px; padding-top: 8px; border-top: 1px solid #ddd; }
+.cl-pv-titel { font-weight: 700; }
+.cl-pv-badge { display: inline-block; margin: 4px 0; padding: 2px 8px; border-radius: 10px; background: #eceff3; font-size: 0.78rem; font-weight: 600; }
+.cl-pv-badge.bewaren { background: #e5f5ec; color: #1a6e45; }
+.cl-pv-bewaren { margin: 10px 0 4px; padding: 6px 8px; background: #f6f7f9; border-left: 3px solid #1d1d1b; font-size: 0.8rem; }
+.cl-pv-voet { margin-top: 10px; border-top: 1px solid #ddd; padding-top: 6px; }
+.ab-gepland-wijzigen { display: flex; flex-direction: column; gap: 4px; margin: 8px 0 12px; }
+.ab-gepland-wijzigen .ab-ruimte { margin-top: 0; }

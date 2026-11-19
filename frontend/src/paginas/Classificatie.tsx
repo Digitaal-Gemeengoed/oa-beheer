@@ -7,7 +7,7 @@ import { api, ApiFout, type Ik } from "../api";
 import { t, taal, tijd } from "../i18n";
 import { ga, L } from "../App";
 import { foutTekst, MeldingVak, RedenVeld, useLaden, type Melding } from "./gedeeld";
-import { IngangVeld, ingangVoorPlatform, isGepland, Keuzekaarten, ModelOverzicht, PlanningMelding, VersieKop, type Intrekking, type VersieRij } from "./Modelbeheer";
+import { GeplandWijzigen, IngangVeld, ingangInvoer, ingangVoorPlatform, isGepland, Keuzekaarten, ModelOverzicht, PlanningMelding, VersieKop, type Intrekking, type VersieRij } from "./Modelbeheer";
 
 // ---------------------------------------------------------------------------
 // Typen: zoals het platform ze geeft (oa-contract, classificatie.ts)
@@ -116,6 +116,9 @@ const T = {
   verwijder: ["Verwijderen", "Remove"],
   geenAttributen: ["Nog geen eigen attributen.", "No own attributes yet."],
   stap5: ["5. Controleren en publiceren", "5. Check and publish"],
+  voorbeeld: ["Zo ziet de medewerker het", "What the user sees"],
+  voorbeeldUitleg: ["Het paneel Classificeren in de Office Assistent, met dit model. Klik op een klasse om haar als gekozen te zien.", "The Classify panel in the Office Assistant, with this model. Click a class to see it as chosen."],
+  versieNieuw: ["nieuwe versie", "new version"],
   klopt: ["Het model klopt.", "The model is valid."],
   publiceren: ["Publiceren als nieuwe versie", "Publish as a new version"],
   publiceerUitleg: ["Nieuwe classificaties gebruiken dit model zodra het ingaat: meteen, of op de ingangsdatum als je die invult. Vanaf dat moment volgt ook het vergrendelen het nieuwe model. Stukken houden de bewaartermijn van de versie waarmee ze zijn geclassificeerd.", "New classifications use this model once it takes effect: straight away, or on the effective date if you fill one in. From then on locking follows the new model too. Documents keep the retention of the version they were classified with."],
@@ -223,6 +226,8 @@ function VersieBekijken({ ik, s, versie, herlaad }: { ik: Ik; s: Stand; versie: 
   const naamVan = (id: string) => lijst?.resultaten.find((r) => r.id === id)?.naam ?? "";
   const [basis, zetBasis] = useState<Config | null>(null);
   if (basis) return <Bewerker ik={ik} s={s} herlaad={herlaad} start={basis} />;
+  // Een geplande versie is nog niet in gebruik: die kun je nog wijzigen.
+  if (rij?.gepland && v && ik.rechten.includes("classificatie.manage")) return <Bewerker key={versie} ik={ik} s={s} herlaad={herlaad} start={v.config} vervangt={rij} />;
   return (
     <>
       <VersieKop titel={tt("titel")} pad={PAD} rij={rij} herlaad={herlaad} intrekPad={ik.rechten.includes("classificatie.manage") ? `/api/classificatie/versies/${versie}/intrekken` : undefined} />
@@ -303,21 +308,24 @@ function NieuwModel({ ik, s, herlaad }: { ik: Ik; s: Stand; herlaad: () => void 
   );
 }
 
-function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => void; start?: Config }) {
+function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herlaad: () => void; start?: Config; vervangt?: VersieRij }) {
   const kan = ik.rechten.includes("classificatie.manage");
   const magAfwijken = kan && ik.rechten.includes("bewaartermijn.afwijken");
   const vanActief = useMemo<Config>(() => s.actief?.config ?? s.standaard!, [s]);
   const [config, zetConfig] = useState<Config>(start ?? vanActief);
   const [problemen, zetProblemen] = useState<Probleem[] | null>(null);
   const [reden, zetReden] = useState("");
-  const [ingang, zetIngang] = useState("");
-  const gepland = rijenVan(s).find((r) => r.gepland);
+  const [ingang, zetIngang] = useState(ingangInvoer(vervangt?.ingang));
+  // Bij het wijzigen van een geplande versie staat die zelf in de bewerker; geen blokkade.
+  const gepland = vervangt ? undefined : rijenVan(s).find((r) => r.gepland);
   const [m, zetM] = useState<Melding>(null);
   const [bezig, zetBezig] = useState(false);
   const [vraag, zetVraag] = useState("");
   const [open, zetOpen] = useState<string | null>(null);
   const lijst = s.selectielijsten!.find((l) => l.id === config.selectielijst) ?? s.selectielijsten![0]!;
-  const gewijzigd = !s.actief || !!start || vast(config) !== vast(vanActief);
+  const gewijzigd = vervangt
+    ? vast(config) !== vast(start!) || ingangVoorPlatform(ingang) !== ingangVoorPlatform(ingangInvoer(vervangt.ingang))
+    : !s.actief || !!start || vast(config) !== vast(vanActief);
   const eerste = useRef(true);
 
   useEffect(() => {
@@ -353,9 +361,9 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
     zetM(null);
     try {
       const op = ingangVoorPlatform(ingang);
-      const r = await api<{ versie: number }>("POST", "/api/classificatie/publiceer", { config, reden, ...(op ? { ingang: op } : {}) });
+      const r = await api<{ versie: number }>("POST", "/api/classificatie/publiceer", { config, reden, ...(op ? { ingang: op } : {}), ...(vervangt ? { vervangt: vervangt.versie } : {}) });
       zetReden("");
-      ga(`${PAD}?${op ? "gepland" : "gepubliceerd"}=${r.versie}`);
+      ga(`${PAD}?${op ? "gepland" : "gepubliceerd"}=${r.versie}${vervangt ? `&vervangt=${vervangt.versie}` : ""}`);
       herlaad();
     } catch (e) {
       const details = e instanceof ApiFout ? e.details : undefined;
@@ -368,8 +376,12 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
   return (
     <>
       <Paragraph><L naar={PAD}>← {tt("titel")}</L></Paragraph>
-      <Heading1>{start ? t("nieuwModel") : `${tt("titel")} ${t("bewerken").toLowerCase()}`}</Heading1>
-      <Paragraph className="ab-lead">{tt("intro")}</Paragraph>
+      <Heading1>{vervangt ? `${vervangt.naam} · ${t("versie")} ${vervangt.versie} ${t("bewerken").toLowerCase()}` : start ? t("nieuwModel") : `${tt("titel")} ${t("bewerken").toLowerCase()}`}</Heading1>
+      {vervangt ? (
+        <GeplandWijzigen rij={vervangt} actief={rijenVan(s).find((r) => r.actief) ?? null} pad={PAD} intrekPad={`/api/classificatie/versies/${vervangt.versie}/intrekken`} herlaad={herlaad} />
+      ) : (
+        <Paragraph className="ab-lead">{tt("intro")}</Paragraph>
+      )}
 
       <div className="md-status">
         <div>
@@ -388,13 +400,15 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
         {s.actief && gewijzigd && (
           <div className="md-concept">
             <StatusBadge status="warning">{tt("gewijzigd")}</StatusBadge>
-            {kan && <SubtleButton onClick={() => zetConfig(vanActief)}>{tt("terug")}</SubtleButton>}
+            {kan && <SubtleButton onClick={() => zetConfig(vervangt ? start! : vanActief)}>{vervangt ? t("terugNaarGepland") : tt("terug")}</SubtleButton>}
           </div>
         )}
       </div>
       {!kan && <Alert type="info"><Paragraph>{tt("alleenLezen")}</Paragraph></Alert>}
       <MeldingVak m={m} />
 
+      <div className="md-raster">
+      <div className="md-hoofd">
       <div className="cl-kolommen">
         {/* 1. Naam en selectielijst */}
         <section aria-labelledby="cl-stap1">
@@ -578,14 +592,14 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
         {kan && (
           <div className="ab-formulier">
             <Paragraph className="ab-klein">{tt("publiceerUitleg")}</Paragraph>
-            {gepland && <PlanningMelding gepland={gepland} actief={rijenVan(s).find((r) => r.actief) ?? null} />}
+            {gepland && <PlanningMelding gepland={gepland} actief={rijenVan(s).find((r) => r.actief) ?? null} pad={PAD} />}
             {!gepland && (
               <>
                 <RedenVeld id="cl-reden" waarde={reden} zet={zetReden} />
                 <IngangVeld id="cl-ingang" waarde={ingang} zet={zetIngang} />
                 <div>
                   <PrimaryActionButton onClick={publiceer} disabled={bezig || !gewijzigd || fouten.length > 0 || reden.trim().length < 5}>
-                    {bezig ? tt("bezig") : ingangVoorPlatform(ingang) ? t("plannen") : tt("publiceren")}
+                    {bezig ? tt("bezig") : vervangt ? t("wijzigingOpslaan") : ingangVoorPlatform(ingang) ? t("plannen") : tt("publiceren")}
                   </PrimaryActionButton>
                 </div>
               </>
@@ -593,8 +607,107 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
           </div>
         )}
       </section>
+      </div>
 
+      <aside className="md-voorbeeld" aria-labelledby="cl-voorbeeld-titel">
+        <Heading2 id="cl-voorbeeld-titel">{tt("voorbeeld")}</Heading2>
+        <p className="ab-klein">{tt("voorbeeldUitleg")}</p>
+        <Voorbeeld config={config} lijst={lijst} versie={vervangt ? `${tt("versie")} ${vervangt.versie}, ${taal() === "en" ? "changed" : "gewijzigd"}` : gewijzigd ? tt("versieNieuw") : `${tt("versie")} ${s.actief?.versie ?? ""}`} />
+      </aside>
+      </div>
     </>
+  );
+}
+
+/**
+ * Wat de medewerker in het paneel van de Office Assistent ziet bij
+ * Classificeren, met dit model: de voorstellen van de assistent, de gekozen
+ * klasse met de bewaartermijn (met de afwijkingen van de gemeente), de eigen
+ * attributen en wanneer het stuk vergrendeld wordt. Klik op een klasse om
+ * haar te zien als gekozen.
+ */
+function Voorbeeld({ config, lijst, versie }: { config: Config; lijst: Selectielijst; versie: string }) {
+  const uit = new Set(config.uitgezet ?? []);
+  const afw = new Map((config.afwijkingen ?? []).map((a) => [a.resultaat, a]));
+  const pt = new Map(lijst.procestypen.map((p) => [p.nummer, p]));
+  const metAfwijking = (r: Resultaat): Resultaat & { eigen: boolean } => {
+    const a = afw.get(r.id);
+    return a ? { ...r, waardering: a.waardering ?? r.waardering, bewaartermijn: a.waardering === "blijvend-bewaren" ? undefined : (a.bewaartermijn ?? r.bewaartermijn), eigen: true } : { ...r, eigen: false };
+  };
+  const beschikbaar = lijst.resultaten.filter((r) => !uit.has(r.id));
+  // Drie voorbeelden: eerst klassen met een eigen termijn (daar zie je het verschil), dan de eerste die aan staan.
+  const voorbeelden = [...beschikbaar.filter((r) => afw.has(r.id)), ...beschikbaar.filter((r) => !afw.has(r.id))].slice(0, 3).map(metAfwijking);
+  const [keuze, zetKeuze] = useState<string | null>(null);
+  const gekozen = voorbeelden.find((r) => r.id === keuze) ?? voorbeelden[0];
+  const en = taal() === "en";
+  const procesobject = gekozen && pt.get(gekozen.procestype)?.procesobject;
+
+  const bewaren = !gekozen
+    ? ""
+    : gekozen.waardering === "blijvend-bewaren"
+      ? en ? "Keep permanently: the document goes to the archive." : "Blijvend bewaren: het stuk gaat naar het archief."
+      : `${en ? "Destroy" : "Vernietigen"} ${gekozen.bewaartermijn ? (en ? `after ${duur(gekozen.bewaartermijn)}` : `na ${duur(gekozen.bewaartermijn)}`) : `(${gekozen.bewaartermijnTekst ?? "zie toelichting"})`}, ${
+          gekozen.procestermijn === "nihil"
+            ? en ? `counted from status "${config.termijnStartBij}".` : `te rekenen vanaf de status ‘${config.termijnStartBij}’.`
+            : en ? "counted from the end date of the process object." : `te rekenen vanaf de einddatum van ${procesobject ? procesobject.toLowerCase() : "het procesobject"}.`
+        }`;
+
+  return (
+    <div className="md-paneel cl-paneel">
+      <div className="md-paneel-kop">{en ? "Classify" : "Classificeren"}</div>
+      <div className="md-paneel-sub">{en ? "Where it belongs, and how long we keep it" : "Waar het hoort, en hoe lang we het bewaren"}</div>
+      <div className="md-paneel-model">{config.naam?.trim() || lijst.naam} · {versie}</div>
+      {beschikbaar.length === 0 ? (
+        <p className="md-paneel-hulp">{en ? "No classes are switched on: the user cannot classify." : "Er staan geen klassen aan: de medewerker kan niet classificeren."}</p>
+      ) : (
+        <>
+          <div className="cl-pv-kop">{en ? "Suggested by the assistant" : "Voorstel van de assistent"}</div>
+          <ul className="cl-pv-klassen">
+            {voorbeelden.map((r) => (
+              <li key={r.id}>
+                <button type="button" className={r.id === gekozen?.id ? "gekozen" : ""} aria-pressed={r.id === gekozen?.id} onClick={() => zetKeuze(r.id)}>
+                  <span><b>{r.id}</b> {r.naam}{r.omschrijving ? ` · ${r.omschrijving}` : ""}</span>
+                  <span className="cl-pv-klein">{pt.get(r.procestype)?.naam} · {termijn(r)}{r.eigen ? (en ? " (own term)" : " (eigen termijn)") : ""}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="md-paneel-veld">
+            <div className="md-paneel-label">{en ? "Search the retention schedule" : "Zoek in de selectielijst"}</div>
+            <div className="md-paneel-invoer">{en ? `${beschikbaar.length} classes to choose from` : `${beschikbaar.length} klassen om uit te kiezen`}</div>
+          </div>
+          {gekozen && (
+            <div className="cl-pv-gekozen">
+              <div className="cl-pv-titel">{gekozen.id} {gekozen.naam}</div>
+              <div className="md-paneel-hulp">{gekozen.procestype}. {pt.get(gekozen.procestype)?.naam}{gekozen.omschrijving ? ` · ${gekozen.omschrijving}` : ""}</div>
+              <span className={`cl-pv-badge${gekozen.waardering === "blijvend-bewaren" ? " bewaren" : ""}`}>{termijn(gekozen)}</span>
+              {gekozen.eigen && <div className="md-paneel-hulp">{en ? "Deviation from the schedule" : "Afwijking van de selectielijst"}: {afw.get(gekozen.id)?.reden || "—"}</div>}
+              {gekozen.waardering === "vernietigen" && gekozen.procestermijn !== "nihil" && (
+                <div className="md-paneel-veld">
+                  <div className="md-paneel-label">{gekozen.procestermijn === "vervaldatum" ? (en ? "Expiry date" : "Vervaldatum") : (en ? "End date of the process object" : "Einddatum van het procesobject")}</div>
+                  <div className="md-paneel-invoer datum">dd-mm-jjjj</div>
+                </div>
+              )}
+              {config.attributen.map((a) => (
+                <div key={a.sleutel} className="md-paneel-veld">
+                  <div className="md-paneel-label">{a.label || a.sleutel}{a.verplicht ? (en ? " (required)" : " (verplicht)") : ""}</div>
+                  {a.beschrijving && <div className="md-paneel-hulp">{a.beschrijving}</div>}
+                  {a.type === "tekst" ? <div className="md-paneel-invoer" /> : <div className="md-paneel-invoer keuze">{en ? "Choose…" : "Kies…"}</div>}
+                </div>
+              ))}
+              <p className="cl-pv-bewaren">{bewaren}</p>
+              {config.vergrendelBij.length > 0 && (
+                <p className="md-paneel-hulp">🔒 {en ? "Locked once the status is" : "Vergrendeld zodra de status"} {config.vergrendelBij.map((x) => `‘${x}’`).join(en ? " or " : " of ")}{en ? "." : " is."}</p>
+              )}
+              <div className="md-paneel-knop">{en ? "Record classification" : "Classificatie vastleggen"}</div>
+            </div>
+          )}
+          <p className="md-paneel-hulp cl-pv-voet">
+            {en ? "The retention period comes from the" : "De bewaartermijn komt uit de"} {lijst.naam}{(config.afwijkingen?.length ?? 0) > 0 ? (en ? ", with your municipality's deviations." : ", met de afwijkingen van je gemeente.") : "."}
+          </p>
+        </>
+      )}
+    </div>
   );
 }
 

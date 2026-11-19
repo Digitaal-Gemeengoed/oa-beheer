@@ -1,5 +1,18 @@
 # Wijzigingen
 
+## 0.11.0 — 2026-11-19
+
+Vereist opendop-mini 0.13.0 op VPS 2.
+
+**Voorbeeld bij het classificatiemodel.** Naast de bewerker staat nu, net als bij het metadatamodel, *Zo ziet de medewerker het*: het paneel Classificeren met dit model. Met de voorstellen van de assistent (eerst klassen met een eigen termijn), de bewaartermijn inclusief afwijkingen, de velden voor einddatum en eigen attributen, wanneer de termijn ingaat, wanneer het stuk vergrendeld wordt, en de knop *Classificatie vastleggen*. Klik op een klasse om haar als gekozen te zien.
+
+**Een geplande versie wijzigen.** Een versie die nog niet is ingegaan, opent in de bewerker in plaats van alleen lezen. *Wijziging opslaan* maakt een nieuwe versie die de geplande vervangt, met de ingangsdatum die je opgeeft (die staat al ingevuld; ook alleen de datum verschuiven kan). De vervangen versie blijft in de lijst met de status *Vervangen — door versie N*. Zodra een versie in gebruik is, leidt elke wijziging nog steeds tot een nieuwe versie.
+
+- Bovenaan de bewerker staat wat er gebeurt, met *Planning intrekken*.
+- Wie de versie in gebruik bewerkt terwijl er een gepland staat, krijgt een link naar de geplande versie.
+- Een geplande versie wijzigen gaat buiten het concept van het metadatamodel om.
+- Audit: `vervangt` bij publiceren.
+
 ## 0.10.2 — 2026-11-19
 
 **Instellingen: waarschuwing bij niet-opgeslagen invoer.**

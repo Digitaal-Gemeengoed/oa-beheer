@@ -15,7 +15,7 @@ import { foutTekst, MeldingVak, RedenVeld, type Melding } from "./gedeeld";
  * alleen te bekijken, niet aan te passen: wie iets wil veranderen, maakt een
  * nieuwe versie.
  */
-export interface Intrekking { reden: string; door: string | null; op: string }
+export interface Intrekking { reden: string; door: string | null; op: string; vervangenDoor?: number | null }
 export interface VersieRij {
   versie: number; naam: string; basis: string; omvang: string; gepubliceerd: string | null; door: string | null; actief: boolean; teBekijken: boolean;
   /** Wanneer de versie ingaat (of inging). */
@@ -35,22 +35,47 @@ function Status({ v, kort }: { v: VersieRij; kort?: boolean }) {
     ? [<StatusBadge status="safe">{t("inGebruik")}</StatusBadge>, t("nieuweStukken")]
     : v.gepland
       ? [<StatusBadge status="warning">{t("geplandKop")}</StatusBadge>, `${t("gaatInOp")} ${tijd(v.ingang)}`]
-      : v.ingetrokken
+      : v.ingetrokken?.vervangenDoor
+        ? [<StatusBadge status="neutral">{t("vervangen")}</StatusBadge>, `${t("doorVersie")} ${v.ingetrokken.vervangenDoor}`]
+        : v.ingetrokken
         ? [<StatusBadge status="neutral">{t("ingetrokken")}</StatusBadge>, t("gaatNietIn")]
         : [<StatusBadge status="neutral">{t("vorigeVersie")}</StatusBadge>, `${t("bestaandeStukken")} · ${t("alleenLezen")}`];
   return <>{badge}{!kort && <span className="ab-klein ab-blok-regel">{regel}</span>}</>;
 }
 
 /** De melding over een geplande versie: tot de ingang blijft de huidige gelden. */
-export function PlanningMelding({ gepland, actief }: { gepland: VersieRij; actief: VersieRij | null }) {
+export function PlanningMelding({ gepland, actief, pad }: { gepland: VersieRij; actief: VersieRij | null; pad?: string }) {
   return (
     <Alert type="info">
       <Paragraph>
         <b>{t("versieKop")} {gepland.versie}</b> {t("gaatInOp")} <b>{tijd(gepland.ingang)}</b>.{" "}
         {actief ? `${t("totDanGeldt")} ${actief.versie}.` : ""} {t("geplandBlokkeert")}
+        {pad && <> <L naar={`${pad}/versie/${gepland.versie}`}>{t("geplandOpenen")} →</L></>}
       </Paragraph>
     </Alert>
   );
+}
+
+/** Bovenaan de bewerker als je een geplande versie wijzigt: wat er gebeurt, en intrekken. */
+export function GeplandWijzigen({ rij, actief, pad, intrekPad, herlaad }: { rij: VersieRij; actief: VersieRij | null; pad: string; intrekPad: string; herlaad: () => void }) {
+  return (
+    <div className="ab-gepland-wijzigen">
+      <Alert type="info">
+        <Paragraph>
+          <StatusBadge status="warning">{t("geplandKop")}</StatusBadge> {t("geplandWijzigen1")} <b>{tijd(rij.ingang)}</b>
+          {actief ? `; ${t("totDanGeldt").charAt(0).toLowerCase()}${t("totDanGeldt").slice(1)} ${actief.versie}` : ""}. {t("geplandWijzigen2")}
+        </Paragraph>
+      </Alert>
+      <PlanningIntrekken pad={pad} intrekPad={intrekPad} versie={rij.versie} herlaad={herlaad} />
+    </div>
+  );
+}
+
+/** Een ISO-tijd als waarde voor een datetime-local-veld (lokale tijd). */
+export function ingangInvoer(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 
 /** Wanneer een nieuwe versie ingaat. Leeg: meteen. */
@@ -73,6 +98,7 @@ export function ingangVoorPlatform(waarde: string): string | undefined {
 /** De melding op het overzicht na publiceren, plannen of intrekken. */
 function meldingUitAdres(): Melding {
   const q = new URLSearchParams(location.search);
+  if (q.get("vervangt")) return { soort: "ok", tekst: `${t("versieKop")} ${q.get("vervangt")} ${t("isGewijzigd")} ${q.get("gepland") ?? q.get("gepubliceerd")}.` };
   if (q.get("gepland")) return { soort: "ok", tekst: `${t("versieKop")} ${q.get("gepland")} ${t("staatGepland")}` };
   if (q.get("ingetrokken")) return { soort: "ok", tekst: `${t("versieKop")} ${q.get("ingetrokken")} ${t("isIngetrokken")}` };
   return null;
@@ -99,7 +125,7 @@ export function ModelOverzicht(p: {
         {p.kan && <PrimaryActionButton onClick={() => ga(`${p.pad}/nieuw`)}>+ {t("nieuwModel")}</PrimaryActionButton>}
       </div>
       <Paragraph className="ab-lead">{p.intro}</Paragraph>
-      <MeldingVak m={p.melding ?? meldingUitAdres()} />
+      <MeldingVak m={meldingUitAdres() ?? p.melding ?? null} />
       {gepland && <PlanningMelding gepland={gepland} actief={p.actief} />}
       <div className="ab-tabel ab-versies">
         <Table>
@@ -153,6 +179,8 @@ export function VersieKop({ titel, pad, rij, intrekPad, herlaad }: { titel: stri
       </div>
       {rij?.gepland ? (
         <Paragraph className="ab-klein">{t("geplandVersie")} {tijd(rij.ingang)}. {t("geplandVersie2")}</Paragraph>
+      ) : rij?.ingetrokken?.vervangenDoor ? (
+        <Paragraph className="ab-klein">{t("vervangenUitleg")} <L naar={`${pad}/versie/${rij.ingetrokken.vervangenDoor}`}>{t("versie")} {rij.ingetrokken.vervangenDoor}</L>.</Paragraph>
       ) : rij?.ingetrokken ? (
         <Paragraph className="ab-klein">{t("ingetrokkenOp")} {tijd(rij.ingetrokken.op)}{rij.ingetrokken.door ? ` ${t("door").toLowerCase()} ${rij.ingetrokken.door}` : ""}: {rij.ingetrokken.reden}</Paragraph>
       ) : (

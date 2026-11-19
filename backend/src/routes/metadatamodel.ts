@@ -44,6 +44,8 @@ const CONFIG = {
 
 /** Wanneer een nieuwe versie ingaat; leeg is meteen. */
 export const INGANG = { type: "string", format: "date-time" } as const;
+/** Welke geplande versie een publicatie vervangt (een geplande versie wijzigen). */
+export const VERVANGT = { type: "integer", minimum: 1 } as const;
 export const REDEN = { type: "object", required: ["reden"], additionalProperties: false, properties: { reden: { type: "string", minLength: 5, maxLength: 1000 } } } as const;
 
 export async function metadatamodelRoutes(app: FastifyInstance): Promise<void> {
@@ -109,11 +111,11 @@ export async function metadatamodelRoutes(app: FastifyInstance): Promise<void> {
   );
 
   /** Publiceren: een nieuwe versie van het objecttype voor deze gemeente. Altijd met reden; in de audit. */
-  app.post<{ Body: { config: { basis: string; naam?: string; velden: { aan?: boolean }[] }; reden: string; ingang?: string } }>(
+  app.post<{ Body: { config: { basis: string; naam?: string; velden: { aan?: boolean }[] }; reden: string; ingang?: string; vervangt?: number } }>(
     "/api/metadatamodel/publiceer",
     {
       schema: {
-        body: { type: "object", required: ["config", "reden"], additionalProperties: false, properties: { config: CONFIG, reden: { type: "string", minLength: 5, maxLength: 1000 }, ingang: INGANG } },
+        body: { type: "object", required: ["config", "reden"], additionalProperties: false, properties: { config: CONFIG, reden: { type: "string", minLength: 5, maxLength: 1000 }, ingang: INGANG, vervangt: VERVANGT } },
       },
     },
     async (req) => {
@@ -121,7 +123,7 @@ export async function metadatamodelRoutes(app: FastifyInstance): Promise<void> {
       const p = req.persoon!;
       let type: { versie: number };
       try {
-        type = await platformVan(req).vraag<{ versie: number }>("POST", `/objecttypen/${OBJECTTYPE}/model`, p, { config: req.body.config, ...(req.body.ingang ? { ingang: req.body.ingang } : {}) });
+        type = await platformVan(req).vraag<{ versie: number }>("POST", `/objecttypen/${OBJECTTYPE}/model`, p, { config: req.body.config, ...(req.body.ingang ? { ingang: req.body.ingang } : {}), ...(req.body.vervangt ? { vervangt: req.body.vervangt } : {}) });
       } catch (e) {
         await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "metadatamodel.gepubliceerd", doel: OBJECTTYPE, ip: req.ip, resultaat: "geweigerd", details: { basis: req.body.config.basis, reden: req.body.reden, ...(req.body.ingang ? { ingang: req.body.ingang } : {}), fout: (e as Error).message } });
         throw e;
@@ -134,7 +136,7 @@ export async function metadatamodelRoutes(app: FastifyInstance): Promise<void> {
         doel: `${OBJECTTYPE} versie ${type.versie}`,
         ip: req.ip,
         resultaat: "ok",
-        details: { basis: req.body.config.basis, ...(req.body.config.naam?.trim() ? { naam: req.body.config.naam.trim() } : {}), velden: req.body.config.velden.filter((v) => v.aan).length, versie: type.versie, ...(req.body.ingang ? { ingang: req.body.ingang } : {}), reden: req.body.reden },
+        details: { basis: req.body.config.basis, ...(req.body.config.naam?.trim() ? { naam: req.body.config.naam.trim() } : {}), velden: req.body.config.velden.filter((v) => v.aan).length, versie: type.versie, ...(req.body.ingang ? { ingang: req.body.ingang } : {}), ...(req.body.vervangt ? { vervangt: req.body.vervangt } : {}), reden: req.body.reden },
       });
       return type;
     },

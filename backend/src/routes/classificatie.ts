@@ -3,7 +3,7 @@ import { AppFout } from "../app.js";
 import { schrijfAudit } from "../audit.js";
 import type { Platform } from "../platform.js";
 import { vereis } from "../toegang.js";
-import { INGANG, REDEN } from "./metadatamodel.js";
+import { INGANG, REDEN, VERVANGT } from "./metadatamodel.js";
 
 /**
  * Het classificatiemodel: welke resultaten uit de selectielijst de gemeente
@@ -84,11 +84,11 @@ export async function classificatieRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  app.post<{ Body: { config: Config; reden: string; ingang?: string } }>(
+  app.post<{ Body: { config: Config; reden: string; ingang?: string; vervangt?: number } }>(
     "/api/classificatie/publiceer",
     {
       schema: {
-        body: { type: "object", required: ["config", "reden"], additionalProperties: false, properties: { config: CONFIG, reden: { type: "string", minLength: 5, maxLength: 1000 }, ingang: INGANG } },
+        body: { type: "object", required: ["config", "reden"], additionalProperties: false, properties: { config: CONFIG, reden: { type: "string", minLength: 5, maxLength: 1000 }, ingang: INGANG, vervangt: VERVANGT } },
       },
     },
     async (req) => {
@@ -106,11 +106,12 @@ export async function classificatieRoutes(app: FastifyInstance): Promise<void> {
         vergrendelBij: c.vergrendelBij,
         termijnStartBij: c.termijnStartBij,
         ...(req.body.ingang ? { ingang: req.body.ingang } : {}),
+        ...(req.body.vervangt ? { vervangt: req.body.vervangt } : {}),
         reden: req.body.reden,
       };
       let model: { versie: number };
       try {
-        model = await platform.vraag<{ versie: number }>("POST", "/classificatiemodel", p, { config: c, ...(req.body.ingang ? { ingang: req.body.ingang } : {}) });
+        model = await platform.vraag<{ versie: number }>("POST", "/classificatiemodel", p, { config: c, ...(req.body.ingang ? { ingang: req.body.ingang } : {}), ...(req.body.vervangt ? { vervangt: req.body.vervangt } : {}) });
       } catch (e) {
         await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "classificatiemodel.gepubliceerd", doel: "classificatiemodel", ip: req.ip, resultaat: "geweigerd", details: { ...details, fout: (e as Error).message } });
         throw e;

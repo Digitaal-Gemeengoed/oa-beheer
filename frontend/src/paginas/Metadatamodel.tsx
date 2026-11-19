@@ -7,7 +7,7 @@ import { api, ApiFout, type Ik } from "../api";
 import { t, taal, tijd } from "../i18n";
 import { ga, L } from "../App";
 import { foutTekst, MeldingVak, RedenVeld, useLaden, type Melding } from "./gedeeld";
-import { IngangVeld, ingangVoorPlatform, isGepland, Keuzekaarten, ModelOverzicht, PlanningMelding, VersieKop, type Intrekking, type VersieRij } from "./Modelbeheer";
+import { GeplandWijzigen, IngangVeld, ingangInvoer, ingangVoorPlatform, isGepland, Keuzekaarten, ModelOverzicht, PlanningMelding, VersieKop, type Intrekking, type VersieRij } from "./Modelbeheer";
 
 // ---------------------------------------------------------------------------
 // Typen: de catalogus komt van het platform (oa-contract, metadatamodellen.ts)
@@ -296,6 +296,8 @@ function VersieBekijken({ ik, s, versie, herlaad }: { ik: Ik; s: Stand; versie: 
   const config = v?.config ?? (v && rij?.actief ? configVanActief(s) : null);
   const [basis, zetBasis] = useState<Config | null>(null);
   if (basis) return <Bewerker ik={ik} s={s} herlaad={herlaad} start={basis} />;
+  // Een geplande versie is nog niet in gebruik: die kun je nog wijzigen.
+  if (rij?.gepland && config && ik.rechten.includes("metadata.manage")) return <Bewerker key={versie} ik={ik} s={s} herlaad={herlaad} start={config} vervangt={rij} />;
   return (
     <>
       <VersieKop titel={tt("titel")} pad={PAD} rij={rij} herlaad={herlaad} intrekPad={ik.rechten.includes("metadata.manage") ? `/api/metadatamodel/versies/${versie}/intrekken` : undefined} />
@@ -361,7 +363,7 @@ function NieuwModel({ ik, s, herlaad }: { ik: Ik; s: Stand; herlaad: () => void 
   );
 }
 
-function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => void; start?: Config }) {
+function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herlaad: () => void; start?: Config; vervangt?: VersieRij }) {
   const kan = ik.rechten.includes("metadata.manage");
   const cat = s.catalogus!;
   const vanActief = useMemo(() => configVanActief(s), [s]);
@@ -371,13 +373,16 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
   const [controle, zetControle] = useState<Controle | null>(null);
   const [bewaard, zetBewaard] = useState<string | null>(s.concept?.gewijzigd ?? null);
   const [reden, zetReden] = useState("");
-  const [ingang, zetIngang] = useState("");
-  const gepland = rijenVan(s).find((r) => r.gepland);
+  const [ingang, zetIngang] = useState(ingangInvoer(vervangt?.ingang));
+  // Bij het wijzigen van een geplande versie staat die zelf in de bewerker; geen blokkade.
+  const gepland = vervangt ? undefined : rijenVan(s).find((r) => r.gepland);
   const [m, zetM] = useState<Melding>(null);
   const [bezig, zetBezig] = useState(false);
   const model = cat.modellen[config.basis];
-  const gewijzigd = !zelfde(config, vanActief);
-  // Een nieuw model meteen als concept bewaren.
+  const gewijzigd = vervangt
+    ? !zelfde(config, start!) || ingangVoorPlatform(ingang) !== ingangVoorPlatform(ingangInvoer(vervangt.ingang))
+    : !zelfde(config, vanActief);
+  // Een nieuw model meteen als concept bewaren; een geplande versie wijzigen gaat buiten het concept om.
   const eerste = useRef(!start);
 
   // Toetsen (en het voorbeeld bijwerken) bij elke wijziging; het concept bewaren als er iets afwijkt.
@@ -386,7 +391,7 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
       api<Controle>("POST", "/api/metadatamodel/controle", { config }).then(zetControle, (e) => zetM({ soort: "fout", tekst: foutTekst(e) }));
     }, 250);
     let t2: ReturnType<typeof setTimeout> | undefined;
-    if (kan && !eerste.current) {
+    if (kan && !vervangt && !eerste.current) {
       t2 = setTimeout(() => {
         const r = gewijzigd ? api<{ bewaard: string }>("PUT", "/api/metadatamodel/concept", { config }).then((x) => zetBewaard(x.bewaard)) : api("DELETE", "/api/metadatamodel/concept").then(() => zetBewaard(null));
         r.catch(() => undefined);
@@ -434,9 +439,9 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
     zetM(null);
     try {
       const op = ingangVoorPlatform(ingang);
-      const r = await api<{ versie: number }>("POST", "/api/metadatamodel/publiceer", { config, reden, ...(op ? { ingang: op } : {}) });
+      const r = await api<{ versie: number }>("POST", "/api/metadatamodel/publiceer", { config, reden, ...(op ? { ingang: op } : {}), ...(vervangt ? { vervangt: vervangt.versie } : {}) });
       zetReden("");
-      ga(`${PAD}?${op ? "gepland" : "gepubliceerd"}=${r.versie}`);
+      ga(`${PAD}?${op ? "gepland" : "gepubliceerd"}=${r.versie}${vervangt ? `&vervangt=${vervangt.versie}` : ""}`);
       herlaad();
     } catch (e) {
       const details = e instanceof ApiFout ? e.details : undefined;
@@ -461,8 +466,12 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
   return (
     <>
       <Paragraph><L naar={PAD}>← {tt("titel")}</L></Paragraph>
-      <Heading1>{start ? t("nieuwModel") : `${tt("titel")} ${t("bewerken").toLowerCase()}`}</Heading1>
-      <Paragraph className="ab-lead">{tt("intro")}</Paragraph>
+      <Heading1>{vervangt ? `${vervangt.naam} · ${t("versie")} ${vervangt.versie} ${t("bewerken").toLowerCase()}` : start ? t("nieuwModel") : `${tt("titel")} ${t("bewerken").toLowerCase()}`}</Heading1>
+      {vervangt ? (
+        <GeplandWijzigen rij={vervangt} actief={rijenVan(s).find((r) => r.actief) ?? null} pad={PAD} intrekPad={`/api/metadatamodel/versies/${vervangt.versie}/intrekken`} herlaad={herlaad} />
+      ) : (
+        <Paragraph className="ab-lead">{tt("intro")}</Paragraph>
+      )}
 
       <div className="md-status">
         <div>
@@ -476,7 +485,7 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
             {actiefVersie && !actiefVersie.gedeeld && actiefVersie.door ? ` · ${tijd(actiefVersie.gepubliceerd)} ${tt("door")} ${actiefVersie.door}` : ""}
           </div>
         </div>
-        {gewijzigd && (
+        {gewijzigd && !vervangt && (
           <div className="md-concept">
             <StatusBadge status="warning">{tt("concept")}</StatusBadge>
             {bewaard && <span className="ab-klein"> {tt("bewaard")} {tijd(bewaard)}</span>}
@@ -600,14 +609,14 @@ function Bewerker({ ik, s, herlaad, start }: { ik: Ik; s: Stand; herlaad: () => 
             {kan && (
               <div className="ab-formulier">
                 <Paragraph className="ab-klein">{tt("publiceerUitleg")}</Paragraph>
-                {gepland && <PlanningMelding gepland={gepland} actief={rijenVan(s).find((r) => r.actief) ?? null} />}
+                {gepland && <PlanningMelding gepland={gepland} actief={rijenVan(s).find((r) => r.actief) ?? null} pad={PAD} />}
                 {!gepland && (
                   <>
                     <RedenVeld id="md-reden" waarde={reden} zet={zetReden} />
                     <IngangVeld id="md-ingang" waarde={ingang} zet={zetIngang} />
                     <div>
                       <PrimaryActionButton onClick={publiceer} disabled={bezig || !gewijzigd || fouten.length > 0 || reden.trim().length < 5}>
-                        {bezig ? tt("bezig") : ingangVoorPlatform(ingang) ? t("plannen") : tt("publiceren")}
+                        {bezig ? tt("bezig") : vervangt ? t("wijzigingOpslaan") : ingangVoorPlatform(ingang) ? t("plannen") : tt("publiceren")}
                       </PrimaryActionButton>
                     </div>
                   </>
