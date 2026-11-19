@@ -1,26 +1,305 @@
 /* Alleen eigen stijlen; geen inline stijlen (CSP). */
-html, body { margin: 0; }
+
+/* ---------- Thema: vriendelijk en compact ----------
+   Bovenop de NL Design System-componenten (Utrecht) met het Haarlem-thema als
+   basis. Twee klassen (.haarlem-theme.ab-thema) gaan vóór de Haarlem-tokens. */
+.haarlem-theme.ab-thema {
+  --ab-blauw: #2f6fd6;
+  --ab-blauw-donker: #2358b3;
+  --ab-blauw-licht: #eaf1fc;
+  --ab-blauw-zacht: #f4f8fe;
+  --ab-teal: #109987;
+  --ab-teal-licht: #e3f5f2;
+  --ab-achter: #f3f5f9;
+  --ab-kaart: #ffffff;
+  --ab-rand: #e1e6ee;
+  --ab-rand-sterk: #c9d2df;
+  --ab-tekst: #1f2937;
+  --ab-grijs: #64748b;
+  --ab-rood: #c9372c;
+  --ab-rood-licht: #fdecea;
+  --ab-oranje: #b86e00;
+  --ab-oranje-licht: #fdf3e2;
+  --ab-groen: #1a8a55;
+  --ab-groen-licht: #e5f5ec;
+  --ab-hoek: 8px;
+  --ab-hoek-groot: 12px;
+  --ab-schaduw: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 3px rgba(16, 24, 40, .06);
+  --ab-letter: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  /* Tekst: kleiner, zodat er meer op het scherm past. */
+  --utrecht-document-font-family: var(--ab-letter);
+  --utrecht-document-font-size: 14px;
+  --utrecht-document-line-height: 1.5;
+  --utrecht-document-color: var(--ab-tekst);
+  --utrecht-document-background-color: var(--ab-achter);
+  --utrecht-surface-background-color: var(--ab-achter);
+  --utrecht-surface-color: var(--ab-tekst);
+  --utrecht-paragraph-font-family: var(--ab-letter);
+  --utrecht-paragraph-font-size: 14px;
+  --utrecht-paragraph-line-height: 1.5;
+  --utrecht-paragraph-color: var(--ab-tekst);
+  --utrecht-paragraph-lead-font-size: 15px;
+  --utrecht-paragraph-small-font-size: 12.5px;
+  --utrecht-heading-1-font-family: var(--ab-letter);
+  --utrecht-heading-1-font-size: 22px;
+  --utrecht-heading-1-font-weight: 700;
+  --utrecht-heading-1-line-height: 1.25;
+  --utrecht-heading-1-margin-block-start: 0;
+  --utrecht-heading-1-margin-block-end: 12px;
+  --utrecht-heading-1-color: var(--ab-tekst);
+  --utrecht-heading-2-font-family: var(--ab-letter);
+  --utrecht-heading-2-font-size: 17px;
+  --utrecht-heading-2-font-weight: 650;
+  --utrecht-heading-2-line-height: 1.3;
+  --utrecht-heading-2-margin-block-start: 20px;
+  --utrecht-heading-2-margin-block-end: 8px;
+  --utrecht-heading-2-color: var(--ab-tekst);
+  --utrecht-heading-3-font-family: var(--ab-letter);
+  --utrecht-heading-3-font-size: 15px;
+  --utrecht-heading-3-font-weight: 650;
+  --utrecht-heading-3-margin-block-start: 16px;
+  --utrecht-heading-3-margin-block-end: 6px;
+  --utrecht-heading-3-color: var(--ab-tekst);
+  --utrecht-heading-4-font-family: var(--ab-letter);
+  --utrecht-heading-4-font-size: 14px;
+  --utrecht-form-label-font-size: 13px;
+  --utrecht-form-label-font-weight: 600;
+  --utrecht-form-label-color: var(--ab-tekst);
+  --utrecht-form-field-description-font-size: 12.5px;
+  --utrecht-form-field-description-color: var(--ab-grijs);
+
+  /* Links */
+  --utrecht-link-color: var(--ab-blauw);
+  --utrecht-link-hover-color: var(--ab-blauw-donker);
+  --utrecht-link-text-decoration: none;
+  --utrecht-link-hover-text-decoration: underline;
+  --utrecht-focus-outline-color: var(--ab-blauw);
+  --utrecht-focus-outline-width: 2px;
+  --utrecht-focus-outline-offset: 2px;
+  --utrecht-focus-background-color: transparent;
+
+  /* Knoppen: afgeronde hoeken, dunne rand, compact. */
+  --utrecht-button-font-family: var(--ab-letter);
+  --utrecht-button-font-size: 13.5px;
+  --utrecht-button-font-weight: 600;
+  --utrecht-button-line-height: 1.2;
+  --utrecht-button-border-radius: var(--ab-hoek);
+  --utrecht-button-border-width: 1px;
+  --utrecht-button-min-block-size: 34px;
+  --utrecht-button-padding-block-start: 7px;
+  --utrecht-button-padding-block-end: 7px;
+  --utrecht-button-padding-inline-start: 14px;
+  --utrecht-button-padding-inline-end: 14px;
+  --utrecht-button-primary-action-font-size: 13.5px;
+  --utrecht-button-primary-action-font-weight: 600;
+  --utrecht-button-primary-action-background-color: var(--ab-blauw);
+  --utrecht-button-primary-action-border-color: var(--ab-blauw);
+  --utrecht-button-primary-action-border-width: 1px;
+  --utrecht-button-primary-action-color: #fff;
+  --utrecht-button-primary-action-hover-background-color: var(--ab-blauw-donker);
+  --utrecht-button-primary-action-hover-border-color: var(--ab-blauw-donker);
+  --utrecht-button-primary-action-hover-color: #fff;
+  --utrecht-button-primary-action-active-background-color: var(--ab-blauw-donker);
+  --utrecht-button-primary-action-focus-background-color: var(--ab-blauw);
+  --utrecht-button-primary-action-focus-border-color: var(--ab-blauw);
+  --utrecht-button-primary-action-focus-color: #fff;
+  --utrecht-button-primary-action-disabled-background-color: #b9c9e6;
+  --utrecht-button-primary-action-disabled-border-color: #b9c9e6;
+  --utrecht-button-primary-action-disabled-color: #fff;
+  --utrecht-button-secondary-action-font-size: 13.5px;
+  --utrecht-button-secondary-action-font-weight: 600;
+  --utrecht-button-secondary-action-background-color: #fff;
+  --utrecht-button-secondary-action-border-color: var(--ab-rand-sterk);
+  --utrecht-button-secondary-action-border-width: 1px;
+  --utrecht-button-secondary-action-color: var(--ab-tekst);
+  --utrecht-button-secondary-action-hover-background-color: var(--ab-blauw-zacht);
+  --utrecht-button-secondary-action-hover-border-color: var(--ab-blauw);
+  --utrecht-button-secondary-action-hover-color: var(--ab-blauw-donker);
+  --utrecht-button-secondary-action-focus-background-color: #fff;
+  --utrecht-button-secondary-action-focus-border-color: var(--ab-blauw);
+  --utrecht-button-secondary-action-focus-color: var(--ab-tekst);
+  --utrecht-button-subtle-font-size: 13.5px;
+  --utrecht-button-subtle-font-weight: 600;
+  --utrecht-button-subtle-background-color: transparent;
+  --utrecht-button-subtle-border-color: transparent;
+  --utrecht-button-subtle-border-width: 1px;
+  --utrecht-button-subtle-color: var(--ab-blauw);
+  --utrecht-button-subtle-hover-background-color: var(--ab-blauw-licht);
+  --utrecht-button-subtle-hover-border-color: transparent;
+  --utrecht-button-subtle-hover-color: var(--ab-blauw-donker);
+  --utrecht-button-subtle-focus-background-color: var(--ab-blauw-licht);
+  --utrecht-button-subtle-focus-border-color: transparent;
+  --utrecht-button-subtle-focus-color: var(--ab-blauw-donker);
+  --utrecht-button-subtle-padding-block-start: 7px;
+  --utrecht-button-subtle-padding-block-end: 7px;
+  --utrecht-button-subtle-padding-inline-start: 10px;
+  --utrecht-button-subtle-padding-inline-end: 10px;
+
+  /* Invoervelden */
+  --utrecht-textbox-font-family: var(--ab-letter);
+  --utrecht-textbox-font-size: 14px;
+  --utrecht-textbox-border-radius: var(--ab-hoek);
+  --utrecht-textbox-border-width: 1px;
+  --utrecht-textbox-border-bottom-width: 1px;
+  --utrecht-textbox-border-color: var(--ab-rand-sterk);
+  --utrecht-textbox-hover-border-color: #9aa8bc;
+  --utrecht-textbox-focus-border-color: var(--ab-blauw);
+  --utrecht-textbox-padding-block-start: 7px;
+  --utrecht-textbox-padding-block-end: 7px;
+  --utrecht-textbox-padding-inline-start: 10px;
+  --utrecht-textbox-padding-inline-end: 10px;
+  --utrecht-textarea-font-family: var(--ab-letter);
+  --utrecht-textarea-font-size: 14px;
+  --utrecht-textarea-border-radius: var(--ab-hoek);
+  --utrecht-textarea-border-width: 1px;
+  --utrecht-textarea-border-block-end-width: 1px;
+  --utrecht-textarea-border-color: var(--ab-rand-sterk);
+  --utrecht-textarea-hover-border-color: #9aa8bc;
+  --utrecht-textarea-focus-border-color: var(--ab-blauw);
+  --utrecht-textarea-padding-block-start: 7px;
+  --utrecht-textarea-padding-block-end: 7px;
+  --utrecht-textarea-padding-inline-start: 10px;
+  --utrecht-textarea-padding-inline-end: 10px;
+  --utrecht-select-font-family: var(--ab-letter);
+  --utrecht-select-font-size: 14px;
+  --utrecht-select-border-radius: var(--ab-hoek);
+  --utrecht-select-border-width: 1px;
+  --utrecht-select-border-block-end-width: 1px;
+  --utrecht-select-border-color: var(--ab-rand-sterk);
+  --utrecht-select-hover-border-color: #9aa8bc;
+  --utrecht-select-focus-border-color: var(--ab-blauw);
+  --utrecht-select-min-block-size: 34px;
+  --utrecht-select-padding-block-start: 6px;
+  --utrecht-select-padding-block-end: 6px;
+  --utrecht-select-padding-inline-start: 10px;
+
+  /* Tabellen, labels en meldingen */
+  --utrecht-table-font-family: var(--ab-letter);
+  --utrecht-table-font-size: 13.5px;
+  --utrecht-table-line-height: 1.45;
+  --utrecht-table-header-cell-font-size: 12px;
+  --utrecht-table-header-cell-font-weight: 600;
+  --utrecht-table-header-cell-color: var(--ab-grijs);
+  --utrecht-table-header-text-transform: none;
+  --utrecht-table-header-background-color: #f8fafc;
+  --utrecht-table-row-border-block-end-color: var(--ab-rand);
+  --utrecht-table-cell-padding-block-start: 9px;
+  --utrecht-table-cell-padding-block-end: 9px;
+  --utrecht-table-cell-padding-inline-start: 14px;
+  --utrecht-table-cell-padding-inline-end: 14px;
+  --utrecht-status-badge-border-radius: 999px;
+  --utrecht-status-badge-font-size: 11.5px;
+  --utrecht-status-badge-font-weight: 600;
+  --utrecht-status-badge-padding-block: 2px;
+  --utrecht-status-badge-padding-inline: 8px;
+  --utrecht-status-badge-min-block-size: 0;
+  --utrecht-status-badge-text-transform: none;
+  --utrecht-status-badge-letter-spacing: 0;
+  --utrecht-status-badge-success-background-color: var(--ab-groen-licht);
+  --utrecht-status-badge-success-color: var(--ab-groen);
+  --utrecht-status-badge-valid-background-color: var(--ab-groen-licht);
+  --utrecht-status-badge-valid-color: var(--ab-groen);
+  --utrecht-status-badge-safe-background-color: var(--ab-groen-licht);
+  --utrecht-status-badge-safe-color: var(--ab-groen);
+  --utrecht-status-badge-warning-background-color: var(--ab-oranje-licht);
+  --utrecht-status-badge-warning-color: var(--ab-oranje);
+  --utrecht-status-badge-error-background-color: var(--ab-rood-licht);
+  --utrecht-status-badge-error-color: var(--ab-rood);
+  --utrecht-status-badge-danger-background-color: var(--ab-rood-licht);
+  --utrecht-status-badge-danger-color: var(--ab-rood);
+  --utrecht-status-badge-neutral-background-color: #eef1f5;
+  --utrecht-status-badge-neutral-color: #475569;
+  --utrecht-status-badge-background-color: #eef1f5;
+  --utrecht-status-badge-color: #475569;
+  --utrecht-alert-border-radius: var(--ab-hoek-groot);
+  --utrecht-alert-border-width: 1px;
+  --utrecht-alert-padding-block-start: 10px;
+  --utrecht-alert-padding-block-end: 10px;
+  --utrecht-alert-padding-inline-start: 14px;
+  --utrecht-alert-padding-inline-end: 14px;
+  --utrecht-alert-info-background-color: var(--ab-blauw-zacht);
+  --utrecht-alert-info-border-color: #c9daf5;
+  --utrecht-alert-info-color: var(--ab-tekst);
+  --utrecht-alert-ok-background-color: var(--ab-groen-licht);
+  --utrecht-alert-ok-border-color: #bfe5cf;
+  --utrecht-alert-ok-color: var(--ab-tekst);
+  --utrecht-alert-warning-background-color: var(--ab-oranje-licht);
+  --utrecht-alert-warning-border-color: #f2d9ad;
+  --utrecht-alert-warning-color: var(--ab-tekst);
+  --utrecht-alert-error-background-color: var(--ab-rood-licht);
+  --utrecht-alert-error-border-color: #f3c3be;
+  --utrecht-alert-error-color: var(--ab-tekst);
+  --utrecht-checkbox-size: 18px;
+  --utrecht-checkbox-border-radius: 5px;
+  --utrecht-checkbox-border-width: 1.5px;
+  --utrecht-checkbox-border-color: #9aa8bc;
+  --utrecht-checkbox-background-color: #fff;
+  --utrecht-checkbox-hover-border-color: var(--ab-blauw);
+  --utrecht-checkbox-hover-border-width: 1.5px;
+  --utrecht-checkbox-checked-border-width: 1.5px;
+  --utrecht-checkbox-checked-hover-border-width: 1.5px;
+  --utrecht-checkbox-checked-background-color: var(--ab-blauw);
+  --utrecht-checkbox-checked-border-color: var(--ab-blauw);
+  --utrecht-checkbox-checked-hover-background-color: var(--ab-blauw-donker);
+  --utrecht-checkbox-checked-hover-border-color: var(--ab-blauw-donker);
+  --utrecht-checkbox-indeterminate-background-color: var(--ab-blauw);
+  --haarlem-color-primary: var(--ab-blauw);
+}
+.ab-thema .utrecht-alert { border-style: solid; }
+.ab-thema .utrecht-button { transition: background-color .12s, border-color .12s, color .12s; }
+
+/* ---------- Opbouw ---------- */
+html, body { margin: 0; background: #f3f5f9; }
 .ab-pagina { min-height: 100vh; display: flex; flex-direction: column; }
-.ab-kop { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; padding: 12px 24px; border-bottom: 4px solid var(--haarlem-color-primary, #a0153e); }
-.ab-kop-titel { font-weight: 700; font-size: 1.15rem; }
-.ab-kop-wie { margin-left: auto; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.ab-nav { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 8px 24px; background: #f4f4f2; }
-.ab-nav a[aria-current="page"] { font-weight: 700; }
-.ab-inhoud { flex: 1; padding: 16px 24px 48px; max-width: 1100px; width: 100%; box-sizing: border-box; }
-.ab-nood { background: #a4262c; color: #fff; padding: 8px 24px; font-weight: 700; }
-.ab-kaarten { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-.ab-kaart { border: 1px solid #ddd; border-radius: 6px; padding: 12px 16px; }
-.ab-kaart-getal { font-size: 2rem; font-weight: 700; }
-.ab-formulier { display: grid; gap: 12px; max-width: 640px; margin: 16px 0 32px; }
-.ab-knoppen { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-.ab-tabel { overflow-x: auto; }
+/* De link "Naar de inhoud" staat in een alinea; zonder marge neemt die geen ruimte. */
+.ab-pagina > p { margin: 0; }
+.ab-kop { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 8px 20px; background: #fff; border-bottom: 1px solid var(--ab-rand); }
+.ab-merk { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, var(--ab-blauw), var(--ab-teal)); color: #fff; font-weight: 800; font-size: 12px; letter-spacing: .02em; }
+.ab-kop-titel { font-weight: 700; font-size: 15px; }
+.ab-kop-wie { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ab-wie { display: inline-flex; gap: 8px; align-items: center; font-size: 13.5px; }
+.ab-avatar { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--ab-teal-licht); color: var(--ab-teal); font-weight: 700; font-size: 11.5px; }
+.ab-pil { padding: 2px 8px; border-radius: 999px; background: var(--ab-blauw-licht); color: var(--ab-blauw-donker); font-size: 11.5px; font-weight: 600; }
+.ab-romp { flex: 1; display: grid; grid-template-columns: 210px minmax(0, 1fr); align-items: start; }
+.ab-nav { position: sticky; top: 47px; padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; max-height: calc(100vh - 47px); overflow-y: auto; box-sizing: border-box; }
+.ab-nav ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ab-nav a { display: block; padding: 7px 12px; border-radius: var(--ab-hoek); color: #334155; text-decoration: none; font-weight: 500; font-size: 13.5px; }
+.ab-nav a:hover { background: #e8edf5; color: var(--ab-tekst); text-decoration: none; }
+.ab-nav a[aria-current="page"] { background: var(--ab-blauw-licht); color: var(--ab-blauw-donker); font-weight: 650; }
+.ab-nav-kop { margin: 14px 12px 4px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #8a97ab; }
+.ab-inhoud { padding: 20px 28px 48px; max-width: 1280px; width: 100%; box-sizing: border-box; }
+.ab-nood { background: var(--ab-rood); color: #fff; padding: 6px 20px; font-weight: 700; }
+@media (max-width: 860px) {
+  .ab-romp { grid-template-columns: minmax(0, 1fr); }
+  .ab-nav { position: static; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; max-height: none; padding: 8px 12px; gap: 4px; background: #fff; border-bottom: 1px solid var(--ab-rand); }
+  .ab-nav ul { display: flex; gap: 4px; }
+  .ab-nav a { white-space: nowrap; }
+  .ab-nav-kop { display: none; }
+  .ab-inhoud { padding: 16px; }
+  .ab-wie > span:not(.ab-avatar):not(.ab-pil) { display: none; }
+}
+
+/* ---------- Bouwstenen ---------- */
+.ab-kaarten { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 8px 0 16px; }
+.ab-kaart { background: var(--ab-kaart); border: 1px solid var(--ab-rand); border-radius: var(--ab-hoek-groot); padding: 12px 16px; box-shadow: var(--ab-schaduw); }
+.ab-kaart-getal { font-size: 24px; font-weight: 700; color: var(--ab-blauw-donker); line-height: 1.2; }
+.ab-formulier { display: grid; gap: 12px; max-width: 640px; margin: 12px 0 24px; padding: 16px 20px; background: var(--ab-kaart); border: 1px solid var(--ab-rand); border-radius: var(--ab-hoek-groot); box-shadow: var(--ab-schaduw); }
+.ab-formulier > .utrecht-heading-2 { margin-top: 0; }
+.ab-knoppen { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .ab-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; align-items: end; }
-.ab-klein { font-size: 0.85rem; color: #555; }
-.ab-mono { font-family: ui-monospace, monospace; font-size: 0.85rem; word-break: break-all; }
-.ab-smal { max-width: 480px; margin: 48px auto; padding: 0 16px; }
-.ab-vinkjes { display: grid; gap: 6px; }
+.ab-klein { font-size: 12.5px; color: var(--ab-grijs); }
+.ab-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; word-break: break-all; }
+.ab-smal { max-width: 440px; margin: 64px auto; padding: 24px 28px; background: #fff; border: 1px solid var(--ab-rand); border-radius: 16px; box-shadow: var(--ab-schaduw); }
+.ab-vinkjes { display: grid; gap: 6px; border: 1px solid var(--ab-rand); border-radius: var(--ab-hoek); padding: 10px 14px; }
+.ab-vinkjes legend { font-weight: 600; font-size: 13px; padding: 0 4px; }
 .ab-vinkjes label { display: flex; gap: 8px; align-items: center; }
-@media (max-width: 600px) { .ab-kop, .ab-nav, .ab-inhoud { padding-left: 16px; padding-right: 16px; } }
+.ab-rechten { display: flex; flex-wrap: wrap; gap: 4px; }
+.ab-recht { padding: 1px 8px; border-radius: 999px; background: #eef1f5; color: #334155; font-size: 12px; white-space: nowrap; }
+.ab-recht.beheren { background: var(--ab-blauw-licht); color: var(--ab-blauw-donker); }
+.ab-recht.alles { background: var(--ab-teal-licht); color: var(--ab-teal); font-weight: 600; }
+.ab-rechtenraster { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 16px; }
+.ab-rechtenraster small { color: var(--ab-grijs); }
 
 /* NL Design System zet het vinkje als data:-afbeelding; de CSP staat alleen
    'self' toe. Dezelfde iconen als eigen bestanden. */
@@ -42,9 +321,13 @@ html, body { margin: 0; }
 .utrecht-checkbox--custom.utrecht-checkbox--html-input:indeterminate,
 .utrecht-custom-checkbox--html-input:indeterminate { background-image: url("/streep.svg"); }
 
-/* Tabellen: ruimte tussen kolommen, tijd en adres op één regel. */
-.ab-tabel { margin: 16px 0; }
-.ab-tabel th, .ab-tabel td { padding: 8px 16px 8px 0; vertical-align: top; text-align: start; border-bottom: 1px solid #e6e6e6; }
+/* Tabellen: in een kaart, met ruimte tussen kolommen; tijd en adres op één regel. */
+.ab-tabel { margin: 12px 0 20px; overflow-x: auto; background: var(--ab-kaart); border: 1px solid var(--ab-rand); border-radius: var(--ab-hoek-groot); box-shadow: var(--ab-schaduw); }
+.ab-tabel table { width: 100%; margin: 0; border-collapse: collapse; }
+.ab-tabel th, .ab-tabel td { padding: 9px 14px; vertical-align: top; text-align: start; border-bottom: 1px solid var(--ab-rand); }
+.ab-tabel th { background: #f8fafc; color: var(--ab-grijs); font-size: 12px; font-weight: 600; }
+.ab-tabel tbody tr:last-child td { border-bottom: 0; }
+.ab-tabel tbody tr:hover td { background: #fafbfd; }
 .ab-tabel td:first-child { white-space: nowrap; }
 .ab-tabel .ab-mono { white-space: normal; }
 .ab-filters .ab-knoppen { align-self: end; }
@@ -59,7 +342,7 @@ html, body { margin: 0; }
 .md-modellen { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
 .md-model { display: flex; flex-direction: column; gap: 6px; text-align: start; font: inherit; color: inherit; background: #fff; border: 2px solid #ddd; border-radius: 8px; padding: 12px 14px; cursor: pointer; }
 .md-model:hover:not(:disabled) { border-color: #888; }
-.md-model.gekozen { border-color: var(--haarlem-color-primary, #a0153e); background: #fdf6f8; }
+.md-model.gekozen { border-color: var(--ab-blauw); background: var(--ab-blauw-zacht); }
 .md-model:disabled { cursor: default; }
 .md-model:focus-visible { outline: 3px solid #1d1d1b; outline-offset: 2px; }
 .md-model-kop { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
@@ -117,7 +400,7 @@ html, body { margin: 0; }
 /* Anonimiseren */
 .an-tabs { display: flex; gap: 4px; border-bottom: 2px solid #ddd; margin: 8px 0 16px; }
 .an-tab { font: inherit; background: none; border: 0; border-bottom: 3px solid transparent; margin-bottom: -2px; padding: 8px 14px; cursor: pointer; }
-.an-tab.actief { border-bottom-color: var(--haarlem-color-primary, #a0153e); font-weight: 700; }
+.an-tab.actief { border-bottom-color: var(--ab-blauw); font-weight: 700; }
 .an-filters { max-width: 280px; margin-bottom: 16px; }
 .an-kaarten { margin: 16px 0; }
 .an-uitleg { margin: 8px 0 24px; }

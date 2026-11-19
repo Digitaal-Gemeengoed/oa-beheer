@@ -1,5 +1,15 @@
 # Wijzigingen
 
+## 0.6.0 — 2026-11-19
+
+**Een vriendelijker en compacter portaal.**
+
+- **Nieuwe vormgeving.** Een rustig blauw-groen kleurenpalet, knoppen en invoervelden met afgeronde hoeken, tabellen en formulieren in witte kaarten op een lichtgrijze achtergrond, en kleinere letters (14 px) zodat er meer op het scherm past. De onderdelen van NL Design System blijven; alleen hun stijlvariabelen zijn anders.
+- **Navigatie in een zijbalk**, in groepen: de mensen bovenaan, dan *Informatie* (Metadatamodel, Classificatie, Anonimiseren) en *Systeem* (Audit, Instellingen, Profiel). Op een smal scherm een balk die opzij schuift. Bovenaan je naam, je niveau en *Uitloggen*.
+- **Groepen** toont rechten als leesbare labels ("Metadatamodel: beheren") in plaats van technische namen; de technische naam staat in de tooltip. De knop heet *Bewerken*.
+- **Een superadmin heeft alle rechten**, ook rechten die na het aanmaken van de groep zijn bijgekomen. Daardoor zag de groep Superbeheer de pagina's *Metadatamodel*, *Classificatie* en *Anonimiseren* niet: die rechten bestonden nog niet toen de groep werd aangemaakt. In de lijst staat nu "Alle rechten, ook nieuwe"; in het formulier zijn de vinkjes dan vast aan.
+- De lege ruimte boven de kop is weg.
+
 ## 0.5.1 — 2026-11-10
 
 Metadatamodel: bij de Woo-informatiecategorie het vinkje **Ook "geen categorie (niet actief openbaar)" aanbieden**, met uitleg. Het overzicht van wijzigingen noemt het; een waarschuwing als de categorie verplicht is zonder deze keuze.

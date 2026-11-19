@@ -86,32 +86,56 @@ export function App() {
         <SkipLink href="#inhoud">{t("overslaan")}</SkipLink>
         {ik.nood && <div className="ab-nood" role="status">{t("nood")} {tijd(ik.sessieEinde)}</div>}
         <header className="ab-kop">
+          <span className="ab-merk" aria-hidden="true">OA</span>
           <span className="ab-kop-titel">{t("titel")}</span>
           <span className="ab-kop-wie">
-            <span>{ik.naam} · {t("niveau")} {ik.niveau}</span>
-            <Button appearance="secondary-action-button" onClick={uitloggen}>{t("uitloggen")}</Button>
+            <span className="ab-wie">
+              <span className="ab-avatar" aria-hidden="true">{initialen(ik.naam)}</span>
+              <span>{ik.naam}</span>
+              <span className="ab-pil">{t("niveau")} {ik.niveau}</span>
+            </span>
+            <Button appearance="subtle-button" onClick={uitloggen}>{t("uitloggen")}</Button>
           </span>
         </header>
-        <nav className="ab-nav" aria-label={t("titel")}>
-          <L naar="/">{t("dashboard")}</L>
-          {r.has("accounts.view") && <L naar="/accounts">{t("accounts")}</L>}
-          {(r.has("groups.view") || r.has("groups.manage") || r.has("accounts.manage")) && <L naar="/groepen">{t("groepen")}</L>}
-          {r.has("audit.view") && <L naar="/audit">{t("audit")}</L>}
-          {(r.has("metadata.view") || r.has("metadata.manage")) && <L naar="/metadatamodel">{t("metadatamodel")}</L>}
-          {(r.has("classificatie.view") || r.has("classificatie.manage")) && <L naar="/classificatie">{t("classificatie")}</L>}
-          {r.has("anonimiseren.view") && <L naar="/anonimiseren">{t("anonimiseren")}</L>}
-          {(r.has("settings.view") || r.has("settings.manage")) && <L naar="/instellingen">{t("instellingen")}</L>}
-          <L naar="/profiel">{t("profiel")}</L>
-        </nav>
-        <main id="inhoud" className="ab-inhoud" key={pad}>{inhoud}</main>
+        <div className="ab-romp">
+          <nav className="ab-nav" aria-label={t("titel")}>
+            <ul>
+              <li><L naar="/">{t("dashboard")}</L></li>
+              {r.has("accounts.view") && <li><L naar="/accounts">{t("accounts")}</L></li>}
+              {(r.has("groups.view") || r.has("groups.manage") || r.has("accounts.manage")) && <li><L naar="/groepen">{t("groepen")}</L></li>}
+            </ul>
+            {(r.has("metadata.view") || r.has("metadata.manage") || r.has("classificatie.view") || r.has("classificatie.manage") || r.has("anonimiseren.view")) && (
+              <>
+                <span className="ab-nav-kop">{t("navInformatie")}</span>
+                <ul>
+                  {(r.has("metadata.view") || r.has("metadata.manage")) && <li><L naar="/metadatamodel">{t("metadatamodel")}</L></li>}
+                  {(r.has("classificatie.view") || r.has("classificatie.manage")) && <li><L naar="/classificatie">{t("classificatie")}</L></li>}
+                  {r.has("anonimiseren.view") && <li><L naar="/anonimiseren">{t("anonimiseren")}</L></li>}
+                </ul>
+              </>
+            )}
+            <span className="ab-nav-kop">{t("navSysteem")}</span>
+            <ul>
+              {r.has("audit.view") && <li><L naar="/audit">{t("audit")}</L></li>}
+              {(r.has("settings.view") || r.has("settings.manage")) && <li><L naar="/instellingen">{t("instellingen")}</L></li>}
+              <li><L naar="/profiel">{t("profiel")}</L></li>
+            </ul>
+          </nav>
+          <main id="inhoud" className="ab-inhoud" key={pad}>{inhoud}</main>
+        </div>
       </div>
     </Thema>
   );
 }
 
+function initialen(naam: string): string {
+  const d = naam.trim().split(/\s+/).filter((w) => /^\p{Lu}/u.test(w));
+  return ((d[0]?.[0] ?? naam[0] ?? "?") + (d.length > 1 ? d[d.length - 1]![0] : "")).toUpperCase();
+}
+
 function Thema({ children }: { children: ReactNode }) {
   return (
-    <Surface className="haarlem-theme">
+    <Surface className="haarlem-theme ab-thema">
       <Document>{children}</Document>
     </Surface>
   );

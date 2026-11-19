@@ -69,6 +69,14 @@ test("de regels zelf", () => {
   assert.equal(magGroepGeven(manager, { niveau: 1, superadmin: true, rechten: [] }), "superadmin");
 });
 
+test("een superadmin heeft alle rechten, ook die na het aanmaken van de groep bijkwamen", async () => {
+  const s = await sessie(id.super);
+  const ik = (await vraag(s, "GET", "/api/ik")).json();
+  for (const r of ["metadata.manage", "classificatie.manage", "anonimiseren.view", "bewaartermijn.afwijken"]) assert.ok(ik.rechten.includes(r), r);
+  const m = await sessie(id.manager);
+  assert.ok(!(await vraag(m, "GET", "/api/ik")).json().rechten.includes("metadata.view"));
+});
+
 test("een account toevoegen: alleen met groepen die je zelf mag geven; uitnodiging per e-mail", async () => {
   const m = await sessie(id.manager);
   const ok = await vraag(m, "POST", "/api/accounts", { email: "Nieuw@Test.nl", naam: "Nieuw", taal: "en", groepen: [groep.Lezers], reden: "Nieuwe collega bij team Informatiebeheer" });

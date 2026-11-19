@@ -47,7 +47,10 @@ export async function laadPersoon(db: Db, account: string, sessie: string, nood:
     return { ...a, rechten: new Set(RECHTEN), niveau: 4, superadmin: true, nood: true, sessie };
   }
   if (a.hoofdaccount) return null; // het hoofdaccount werkt alleen via /emergency
-  return { ...a, rechten: new Set(a.rechten as Recht[]), niveau: Number(a.niveau), superadmin: a.superadmin, nood: false, sessie };
+  // Een superadmin heeft alle rechten, ook rechten die na het aanmaken van de
+  // groep zijn bijgekomen (zoals metadata.manage en classificatie.manage).
+  const rechten = a.superadmin ? new Set<Recht>(RECHTEN) : new Set(a.rechten as Recht[]);
+  return { ...a, rechten, niveau: Number(a.niveau), superadmin: a.superadmin, nood: false, sessie };
 }
 
 /**

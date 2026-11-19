@@ -8,6 +8,26 @@ import { t } from "../i18n";
 import { foutTekst, MeldingVak, RedenVeld, useLaden, type Melding } from "./gedeeld";
 
 const RECHTEN = ["accounts.view", "accounts.manage", "groups.view", "groups.manage", "audit.view", "settings.view", "settings.manage", "metadata.view", "metadata.manage", "anonimiseren.view", "classificatie.view", "classificatie.manage", "bewaartermijn.afwijken"];
+
+/** Leesbare naam van een recht: onderdeel en wat je mag. */
+function rechtNaam(r: string): string {
+  const [onderdeel, wat] = r.split(".");
+  let o = onderdeel;
+  try { o = t(`recht_${onderdeel}` as never); } catch { /* onbekend onderdeel: de technische naam */ }
+  return `${o}: ${t(wat === "view" ? "rechtBekijken" : wat === "manage" ? "rechtBeheren" : "rechtAfwijken")}`;
+}
+
+function Rechten({ g }: { g: Groep }) {
+  if (g.superadmin) return <span className="ab-recht alles">{t("alleRechten")}</span>;
+  if (!g.rechten.length) return <>—</>;
+  return (
+    <span className="ab-rechten">
+      {RECHTEN.filter((r) => g.rechten.includes(r)).map((r) => (
+        <span key={r} className={`ab-recht${r.endsWith(".view") ? "" : " beheren"}`} title={r}>{rechtNaam(r)}</span>
+      ))}
+    </span>
+  );
+}
 interface Groep { id: string; naam: string; omschrijving: string; rechten: string[]; niveau: number; superadmin: boolean; leden: number }
 type Invoer = Omit<Groep, "id" | "leden"> & { reden: string };
 
@@ -36,7 +56,7 @@ export function Groepen({ ik }: { ik: Ik }) {
               <TableHeaderCell>{t("niveau")}</TableHeaderCell>
               <TableHeaderCell>{t("rechten")}</TableHeaderCell>
               <TableHeaderCell>{t("leden")}</TableHeaderCell>
-              {kan && <TableHeaderCell><span className="ab-klein">{t("opslaan")}</span></TableHeaderCell>}
+              {kan && <TableHeaderCell><span className="ab-klein">{t("acties")}</span></TableHeaderCell>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -44,9 +64,9 @@ export function Groepen({ ik }: { ik: Ik }) {
               <TableRow key={g.id}>
                 <TableCell>{g.naam} {g.superadmin && <StatusBadge status="danger">{t("superadmin")}</StatusBadge>}<div className="ab-klein">{g.omschrijving}</div></TableCell>
                 <TableCell>{g.niveau}</TableCell>
-                <TableCell className="ab-mono">{g.rechten.join(" ") || "—"}</TableCell>
+                <TableCell><Rechten g={g} /></TableCell>
                 <TableCell>{g.leden}</TableCell>
-                {kan && <TableCell><SecondaryActionButton onClick={() => zetBewerk(g)}>{g.naam}</SecondaryActionButton></TableCell>}
+                {kan && <TableCell><SecondaryActionButton onClick={() => zetBewerk(g)} aria-label={`${t("bewerken")}: ${g.naam}`}>{t("bewerken")}</SecondaryActionButton></TableCell>}
               </TableRow>
             ))}
           </TableBody>
@@ -88,18 +108,20 @@ function GroepFormulier({ groep, ik, klaar }: { groep: Groep | null; ik: Ik; kla
       </FormField>
       <fieldset className="ab-vinkjes">
         <legend>{t("rechten")}</legend>
-        {RECHTEN.map((r) => (
-          <label key={r} className="ab-mono">
-            <Checkbox checked={v.rechten.includes(r)} onChange={(e) => zet({ ...v, rechten: e.target.checked ? [...v.rechten, r] : v.rechten.filter((x) => x !== r) })} />
-            {r}
-          </label>
-        ))}
         {ik.superadmin && (
           <label>
             <Checkbox checked={v.superadmin} onChange={(e) => zet({ ...v, superadmin: e.target.checked })} />
-            {t("superadmin")}
+            <span><b>{t("superadmin")}</b> <span className="ab-klein">— {t("superadminUitleg")}</span></span>
           </label>
         )}
+        <div className="ab-rechtenraster">
+          {RECHTEN.map((r) => (
+            <label key={r} title={r}>
+              <Checkbox disabled={v.superadmin} checked={v.superadmin || v.rechten.includes(r)} onChange={(e) => zet({ ...v, rechten: e.target.checked ? [...v.rechten, r] : v.rechten.filter((x) => x !== r) })} />
+              <span>{rechtNaam(r)}</span>
+            </label>
+          ))}
+        </div>
       </fieldset>
       <RedenVeld id="g-reden" waarde={v.reden} zet={(reden) => zet({ ...v, reden })} />
       <div className="ab-knoppen">
