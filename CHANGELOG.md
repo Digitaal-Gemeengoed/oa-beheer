@@ -1,5 +1,9 @@
 # Wijzigingen
 
+## 0.14.1 — 2026-11-19
+
+- Dockerfile: `npm ci` met een BuildKit-cache voor npm, zodat een nieuwe versie niet alle pakketten opnieuw downloadt.
+
 ## 0.14.0 — 2026-11-19
 
 **Ondersteunende stukken: categorieën, toetsvragen en een opzet als vertrekpunt.**

@@ -7,7 +7,7 @@ WORKDIR /bron
 COPY package.json package-lock.json ./
 COPY backend/package.json backend/
 COPY frontend/package.json frontend/
-RUN npm ci --no-audit --no-fund
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund --prefer-offline
 COPY . .
 RUN npm run build && npm prune --omit=dev --no-audit --no-fund
 
