@@ -41,6 +41,9 @@ interface Config {
   attributen: { sleutel: string; standaard?: string }[];
   vergrendelBij: string[];
   termijnStartBij: string;
+  classificerenVerplichtBij?: string[];
+  doorgevenBij?: string[];
+  statusKlassen?: { status: string; namen: string[] }[];
   zoektermen?: { resultaat: string; termen: string[] }[];
   ondersteunend?: {
     omschrijving: string;
@@ -62,6 +65,9 @@ const CONFIG = {
     attributen: { type: "array", maxItems: 50, items: { type: "object" } },
     vergrendelBij: { type: "array", maxItems: 20, items: { type: "string" } },
     termijnStartBij: { type: "string", maxLength: 100 },
+    classificerenVerplichtBij: { type: "array", maxItems: 20, items: { type: "string" } },
+    doorgevenBij: { type: "array", maxItems: 20, items: { type: "string" } },
+    statusKlassen: { type: "array", maxItems: 20, items: { type: "object" } },
     zoektermen: { type: "array", maxItems: 1000, items: { type: "object" } },
     ondersteunend: { type: ["object", "null"] },
   },
@@ -132,6 +138,9 @@ export async function classificatieRoutes(app: FastifyInstance): Promise<void> {
         standaardattributen: c.attributen.filter((x) => x.standaard).map((x) => x.standaard),
         vergrendelBij: c.vergrendelBij,
         termijnStartBij: c.termijnStartBij,
+        ...(c.classificerenVerplichtBij?.length ? { classificerenVerplichtBij: c.classificerenVerplichtBij } : {}),
+        ...(c.doorgevenBij?.length ? { doorgevenBij: c.doorgevenBij } : {}),
+        ...(c.statusKlassen?.length ? { statusKlassen: c.statusKlassen.map((k) => `${k.status}: ${k.namen.join(", ")}`) } : {}),
         ...(req.body.ingang ? { ingang: req.body.ingang } : {}),
         ...(req.body.vervangt ? { vervangt: req.body.vervangt } : {}),
         reden: req.body.reden,

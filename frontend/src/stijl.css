@@ -526,6 +526,16 @@ a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rg
 .cl-statussen legend { font-weight: 600; padding: 0 4px; }
 .cl-statussen .ab-klein { flex-basis: 100%; margin: 0; }
 .cl-vink { display: inline-flex; gap: 6px; align-items: center; }
+.cl-statustabel-rol { overflow-x: auto; }
+.cl-statustabel { border-collapse: collapse; width: 100%; margin: 8px 0; }
+.cl-statustabel th, .cl-statustabel td { border-bottom: 1px solid var(--ab-rand, #ddd); padding: 8px 10px; text-align: left; vertical-align: top; }
+.cl-statustabel thead th { font-size: 0.875rem; font-weight: 600; white-space: nowrap; }
+.cl-statustabel tbody th { font-weight: 600; white-space: nowrap; }
+.cl-statustabel td:nth-child(2), .cl-statustabel td:nth-child(3), .cl-statustabel thead th:nth-child(2), .cl-statustabel thead th:nth-child(3) { text-align: center; }
+.cl-statustabel td:last-child { width: 45%; min-width: 220px; }
+.cl-statustabel textarea { width: 100%; box-sizing: border-box; }
+.cl-verdwenen { color: #8a1c1c; }
+.cl-verplicht-bij { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
 .cl-afwijkingen { border-inline-start: 4px solid #c47a00; background: #fbf6ec; padding: 8px 16px; margin: 12px 0; }
 .cl-afwijkingen ul { margin: 4px 0; padding-inline-start: 18px; }
 .cl-procestypen { display: grid; gap: 6px; margin-top: 12px; }

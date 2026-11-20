@@ -33,7 +33,7 @@ interface Resultaat {
 interface Selectielijst { id: string; naam: string; toelichting: string; procestypen: Procestype[]; resultaten: Resultaat[] }
 interface Afwijking { resultaat: string; waardering?: Waardering; bewaartermijn?: string; reden: string }
 type AttribuutType = "tekst" | "keuze" | "ja-nee";
-interface Attribuut { sleutel: string; label: string; type: AttribuutType; opties?: string[]; verplicht: boolean; beschrijving?: string; standaard?: string; koppeling?: Record<string, string> }
+interface Attribuut { sleutel: string; label: string; type: AttribuutType; opties?: string[]; verplicht: boolean; beschrijving?: string; standaard?: string; koppeling?: Record<string, string>; verplichtBij?: string[] }
 interface Config {
   naam?: string;
   selectielijst: string;
@@ -42,6 +42,9 @@ interface Config {
   attributen: Attribuut[];
   vergrendelBij: string[];
   termijnStartBij: string;
+  classificerenVerplichtBij?: string[];
+  doorgevenBij?: string[];
+  statusKlassen?: { status: string; namen: string[] }[];
   zoektermen?: { resultaat: string; termen: string[] }[];
   ondersteunend?: Ondersteunend | null;
 }
@@ -85,6 +88,22 @@ const T = {
   naam: ["Naam van het model", "Name of the model"],
   naamUitleg: ["Zo heet het model in het paneel. Leeg: de naam van de selectielijst. Een andere naam is ook een nieuwe versie.", "This is what the model is called in the panel. Empty: the name of the schedule. A new name is also a new version."],
   stap2: ["2. Vergrendelen en bewaartermijn", "2. Locking and retention period"],
+  statusKop: ["Verder bij een status", "More at a status"],
+  statusUitleg: [
+    "Wat het platform en de assistent doen als een stuk een status krijgt. Eerst classificeren: zonder classificatie (en de attributen die bij die status verplicht zijn) krijgt een stuk de status niet. Hele zaak of dossier: krijgt één stuk de status, dan krijgen alle stukken in dezelfde zaak (of, zonder zaak, hetzelfde dossier) hem ook; is een van die stukken nog niet klaar, dan gaat het niet door. Klassen voorstellen: bij die status stelt de assistent deze klassen uit de selectielijst voor, binnen het procestype van het stuk.",
+    "What the platform and the assistant do when a document gets a status. Classify first: without a classification (and the attributes required at that status) a document does not get the status. Whole case or file: when one document gets the status, all documents in the same case (or, without a case, the same file) get it too; if one of them is not ready, nothing changes. Suggest classes: at that status the assistant suggests these classes from the schedule, within the document's process type.",
+  ],
+  kolStatus: ["Status", "Status"],
+  kolEerst: ["Eerst classificeren", "Classify first"],
+  kolDoor: ["Hele zaak of dossier", "Whole case or file"],
+  kolKlassen: ["Klassen voorstellen (één naam per regel)", "Suggest classes (one name per line)"],
+  klassenOpzet: ["Opzet", "Template"],
+  veelNamen: ["Veelgebruikte namen in de selectielijst", "Common names in the schedule"],
+  verplichtBij: ["Verplicht vanaf status", "Required from status"],
+  vergrendelt: ["vergrendelt", "locks"],
+  bijvoorbeeld: ["Bijvoorbeeld: Afgebroken", "For example: Afgebroken"],
+  verdwenen: ["niet meer in het metadatamodel", "no longer in the metadata model"],
+  verdwenenUitleg: ["In rood: statussen die het metadatamodel niet meer kent. Zet ze uit; anders kun je niet publiceren.", "In red: statuses the metadata model no longer has. Switch them off; otherwise you cannot publish."],
   vergrendel: ["Vergrendelen bij status", "Lock at status"],
   vergrendelUitleg: ["Bij deze statussen maakt het platform geen nieuwe versie meer. Een wijziging wordt een voorstel, dat een vrijgever beoordeelt (Keycloak-rol vrijgever). Kies ten minste één status.", "At these statuses the platform makes no new version. A change becomes a proposal, reviewed by a releaser (Keycloak role vrijgever). Choose at least one status."],
   start: ["De bewaartermijn gaat in bij status", "The retention period starts at status"],
@@ -209,9 +228,12 @@ function vast(c: Config): string {
     selectielijst: c.selectielijst,
     uitgezet: [...(c.uitgezet ?? [])].sort(),
     afwijkingen: [...(c.afwijkingen ?? [])].map((a) => ({ resultaat: a.resultaat, waardering: a.waardering, bewaartermijn: a.bewaartermijn, reden: a.reden })).sort((a, b) => a.resultaat.localeCompare(b.resultaat)),
-    attributen: c.attributen.map((a) => ({ sleutel: a.sleutel, label: a.label, type: a.type, opties: a.opties, verplicht: a.verplicht, beschrijving: a.beschrijving || undefined, standaard: a.standaard, koppeling: a.koppeling })),
+    attributen: c.attributen.map((a) => ({ sleutel: a.sleutel, label: a.label, type: a.type, opties: a.opties, verplicht: a.verplicht, beschrijving: a.beschrijving || undefined, standaard: a.standaard, koppeling: a.koppeling, verplichtBij: a.verplichtBij?.length ? [...a.verplichtBij].sort() : undefined })),
     vergrendelBij: [...c.vergrendelBij].sort(),
     termijnStartBij: c.termijnStartBij,
+    classificerenVerplichtBij: [...(c.classificerenVerplichtBij ?? [])].sort(),
+    doorgevenBij: [...(c.doorgevenBij ?? [])].sort(),
+    statusKlassen: [...(c.statusKlassen ?? [])].filter((k) => k.namen.length).sort((a, b) => a.status.localeCompare(b.status)),
     zoektermen: [...(c.zoektermen ?? [])].filter((z) => z.termen.length).map((z) => ({ resultaat: z.resultaat, termen: z.termen })).sort((a, b) => a.resultaat.localeCompare(b.resultaat)),
     ondersteunend: c.ondersteunend ?? null,
   });
@@ -306,6 +328,9 @@ function VersieBekijken({ ik, s, versie, herlaad }: { ik: Ik; s: Stand; versie: 
                 <div><dt>{t("inhoud")}</dt><dd>{rij?.omvang}</dd></div>
                 <div><dt>{tt("vergrendel")}</dt><dd>{v.config.vergrendelBij.join(", ") || tt("geen")}</dd></div>
                 <div><dt>{tt("start")}</dt><dd>{v.config.termijnStartBij || "—"}</dd></div>
+                {!!v.config.classificerenVerplichtBij?.length && <div><dt>{tt("kolEerst")}</dt><dd>{v.config.classificerenVerplichtBij.join(", ")}</dd></div>}
+                {!!v.config.doorgevenBij?.length && <div><dt>{tt("kolDoor")}</dt><dd>{v.config.doorgevenBij.join(", ")}</dd></div>}
+                {(v.config.statusKlassen ?? []).map((k) => <div key={k.status}><dt>{tt("kolKlassen").replace(/ \(.*\)$/, "")}: {k.status}</dt><dd>{k.namen.join(", ")}</dd></div>)}
               </dl>
             </section>
             {!!v.config.afwijkingen?.length && (
@@ -327,7 +352,7 @@ function VersieBekijken({ ik, s, versie, herlaad }: { ik: Ik; s: Stand; versie: 
               <Heading2>{tt("attributen")}</Heading2>
               {v.config.attributen.length ? (
                 <ul className="ab-lijst">
-                  {v.config.attributen.map((a) => <li key={a.sleutel}><b>{a.label}</b> <span className="ab-klein">{a.standaard ? ` · ${tt("standaardMerk")}` : ""} · {a.type}{a.verplicht ? ` · ${tt("verplicht").toLowerCase()}` : ""}</span>{a.opties?.length ? <span className="ab-klein ab-blok-regel">{a.opties.join(", ")}</span> : null}</li>)}
+                  {v.config.attributen.map((a) => <li key={a.sleutel}><b>{a.label}</b> <span className="ab-klein">{a.standaard ? ` · ${tt("standaardMerk")}` : ""} · {a.type}{a.verplicht ? ` · ${tt("verplicht").toLowerCase()}` : ""}{a.verplichtBij?.length ? ` · ${tt("verplichtBij").toLowerCase()} ${a.verplichtBij.join(", ")}` : ""}</span>{a.opties?.length ? <span className="ab-klein ab-blok-regel">{a.opties.join(", ")}</span> : null}</li>)}
                 </ul>
               ) : <Paragraph className="ab-klein">{tt("geenAttributen")}</Paragraph>}
             </section>
@@ -456,6 +481,13 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
   const q = vraag.trim().toLowerCase();
   const zichtbaar = (r: Resultaat) => !q || r.id === q || r.id.startsWith(`${q}.`) || `${r.naam} ${r.omschrijving} ${r.toelichting ?? ""} ${(termenVan.get(r.id) ?? []).join(" ")}`.toLowerCase().includes(q);
   const fouten = (problemen ?? []).filter((p) => p.ernst === "fout");
+  // Statussen die het model noemt maar het metadatamodel niet (meer) kent, zoals na een ander metadatamodel: ook tonen, zodat je ze kunt uitzetten.
+  const verdwenen = useMemo(() => {
+    const st = new Set(s.statussen ?? []);
+    const genoemd = [...config.vergrendelBij, config.termijnStartBij, ...(config.classificerenVerplichtBij ?? []), ...(config.doorgevenBij ?? []), ...(config.statusKlassen ?? []).map((k) => k.status), ...config.attributen.flatMap((a) => a.verplichtBij ?? [])];
+    return [...new Set(genoemd.filter((x) => x && !st.has(x)))];
+  }, [s.statussen, config]);
+  const statussen = [...(s.statussen ?? []), ...verdwenen];
 
   // Eén klasse in de boom: vinkje (kiesbaar), naam en termijn, afwijken.
   const rij = (r: Resultaat, o: { kop?: ReactNode; vink?: { aan: boolean; half: boolean; ids: string[] }; extra?: ReactNode; diep?: boolean } = {}) => {
@@ -599,8 +631,8 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
               <fieldset className="cl-statussen">
                 <legend>{tt("vergrendel")}</legend>
                 <p className="ab-klein">{tt("vergrendelUitleg")}</p>
-                {s.statussen.map((st) => (
-                  <label key={st} className="cl-vink">
+                {statussen.map((st) => (
+                  <label key={st} className={`cl-vink${verdwenen.includes(st) ? " cl-verdwenen" : ""}`} title={verdwenen.includes(st) ? tt("verdwenen") : undefined}>
                     <Checkbox
                       checked={config.vergrendelBij.includes(st)}
                       disabled={!kan}
@@ -609,16 +641,58 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
                     {st}
                   </label>
                 ))}
+              {verdwenen.length > 0 && <p className="ab-klein cl-verdwenen">{tt("verdwenenUitleg")}</p>}
               </fieldset>
               <FormField label={<FormLabel htmlFor="cl-start">{tt("start")}</FormLabel>} description={tt("startUitleg")}>
                 <Select id="cl-start" value={config.termijnStartBij} disabled={!kan} onChange={(e) => zetConfig((c) => ({ ...c, termijnStartBij: e.target.value }))}>
-                  {s.statussen.map((st) => <SelectOption key={st} value={st}>{st}</SelectOption>)}
+                  {statussen.map((st) => <SelectOption key={st} value={st}>{verdwenen.includes(st) ? `${st} (${tt("verdwenen")})` : st}</SelectOption>)}
                 </Select>
               </FormField>
             </>
           )}
         </section>
       </div>
+
+      {/* 2b. Verder bij een status */}
+      {!!s.statussen?.length && (
+        <section aria-labelledby="cl-stap2b" className="cl-sectie">
+          <Heading3 id="cl-stap2b">{tt("statusKop")}</Heading3>
+          <Paragraph className="ab-klein">{tt("statusUitleg")}</Paragraph>
+          <div className="cl-statustabel-rol">
+          <table className="cl-statustabel">
+            <thead>
+              <tr><th scope="col">{tt("kolStatus")}</th><th scope="col">{tt("kolEerst")}</th><th scope="col">{tt("kolDoor")}</th><th scope="col">{tt("kolKlassen")}</th></tr>
+            </thead>
+            <tbody>
+              {statussen.map((st) => {
+                const lijstje = (k: "classificerenVerplichtBij" | "doorgevenBij") => config[k] ?? [];
+                const wissel = (k: "classificerenVerplichtBij" | "doorgevenBij", aan: boolean) =>
+                  zetConfig((c) => ({ ...c, [k]: aan ? [...(c[k] ?? []), st] : (c[k] ?? []).filter((x) => x !== st) }));
+                const namen = config.statusKlassen?.find((k) => k.status === st)?.namen ?? [];
+                const zetNamen = (n: string[]) =>
+                  zetConfig((c) => {
+                    const rest = (c.statusKlassen ?? []).filter((k) => k.status !== st);
+                    return { ...c, statusKlassen: n.length ? [...rest, { status: st, namen: n }] : rest };
+                  });
+                return (
+                  <tr key={st}>
+                    <th scope="row" className={verdwenen.includes(st) ? "cl-verdwenen" : undefined}>{st}{verdwenen.includes(st) && <span className="ab-klein ab-blok-regel">{tt("verdwenen")}</span>}{config.vergrendelBij.includes(st) && <span className="ab-klein ab-blok-regel">{tt("vergrendelt")}</span>}</th>
+                    <td><Checkbox aria-label={`${tt("kolEerst")}: ${st}`} checked={lijstje("classificerenVerplichtBij").includes(st)} disabled={!kan} onChange={(e) => wissel("classificerenVerplichtBij", e.target.checked)} /></td>
+                    <td><Checkbox aria-label={`${tt("kolDoor")}: ${st}`} checked={lijstje("doorgevenBij").includes(st)} disabled={!kan} onChange={(e) => wissel("doorgevenBij", e.target.checked)} /></td>
+                    <td>
+                      <NamenVeld id={`cl-sk-${st}`} label={`${tt("kolKlassen")}: ${st}`} namen={namen} kan={kan} zet={zetNamen} placeholder={tt("bijvoorbeeld")} />
+                      {kan && !namen.length && /annul|ingetrok|afgebro|vervallen|stopgezet/i.test(st) && <SubtleButton onClick={() => zetNamen(STATUSKLASSEN_OPZET)}>{tt("klassenOpzet")}: {STATUSKLASSEN_OPZET.join(", ")}</SubtleButton>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          </div>
+          <p className="ab-klein">{tt("veelNamen")}: {veelgebruikteNamen(lijst).join(", ")}.</p>
+          {(problemen ?? []).filter((p) => p.sleutel === "classificerenVerplichtBij" || p.sleutel === "doorgevenBij" || p.sleutel === "statusKlassen").map((p, k) => <p key={k} className={`md-probleem ${p.ernst}`}>{p.melding}</p>)}
+        </section>
+      )}
 
       {/* 3. Klassen */}
       <section aria-labelledby="cl-stap3" className="cl-sectie">
@@ -762,6 +836,7 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
                           <AttribuutBewerken
                             a={a}
                             st={st}
+                            statussen={statussen}
                             kan={kan}
                             zet={(n) => zetConfig((c) => ({ ...c, attributen: c.attributen.map((x) => (x.standaard === st.sleutel ? n : x)) }))}
                             weg={() => zetConfig((c) => ({ ...c, attributen: c.attributen.filter((x) => x.standaard !== st.sleutel) }))}
@@ -786,6 +861,7 @@ function Bewerker({ ik, s, herlaad, start, vervangt }: { ik: Ik; s: Stand; herla
             <li key={a.sleutel} className="md-veld">
               <AttribuutBewerken
                 a={a}
+                statussen={statussen}
                 kan={kan}
                 zet={(n) => zetConfig((c) => ({ ...c, attributen: c.attributen.map((x, j) => (j === i ? n : x)) }))}
                 weg={() => zetConfig((c) => ({ ...c, attributen: c.attributen.filter((_, j) => j !== i) }))}
@@ -1041,7 +1117,7 @@ function Voorbeeld({ config, lijst, versie }: { config: Config; lijst: Selectiel
   );
 }
 
-function AttribuutBewerken({ a, st, kan, zet, weg }: { a: Attribuut; st?: StandaardAttribuut; kan: boolean; zet: (a: Attribuut) => void; weg: () => void }) {
+function AttribuutBewerken({ a, st, statussen, kan, zet, weg }: { a: Attribuut; st?: StandaardAttribuut; statussen: string[]; kan: boolean; zet: (a: Attribuut) => void; weg: () => void }) {
   const id = `cl-a-${a.sleutel}`;
   // Een keuze hernoemen: de koppeling gaat mee (zelfde plek in de lijst).
   const zetOpties = (nieuw: string[]) => {
@@ -1108,6 +1184,24 @@ function AttribuutBewerken({ a, st, kan, zet, weg }: { a: Attribuut; st?: Standa
         <label className="cl-vink">
           <Checkbox checked={a.verplicht} disabled={!kan} onChange={(e) => zet({ ...a, verplicht: e.target.checked })} /> {tt("verplicht")}
         </label>
+        {!a.verplicht && statussen.length > 0 && (
+          <span className="cl-verplicht-bij">
+            <span className="ab-klein">{tt("verplichtBij")}:</span>
+            {statussen.map((x) => (
+              <label key={x} className="cl-vink ab-klein">
+                <Checkbox
+                  checked={!!a.verplichtBij?.includes(x)}
+                  disabled={!kan}
+                  onChange={(e) => {
+                    const n = e.target.checked ? [...(a.verplichtBij ?? []), x] : (a.verplichtBij ?? []).filter((y) => y !== x);
+                    zet({ ...a, verplichtBij: n.length ? n : undefined });
+                  }}
+                />
+                {x}
+              </label>
+            ))}
+          </span>
+        )}
         {kan && !st && <SecondaryActionButton onClick={weg}>{tt("verwijder")}</SecondaryActionButton>}
       </div>
     </div>
@@ -1293,4 +1387,38 @@ function OndersteunendBewerken({ o, kan, zet }: { o: Ondersteunend; kan: boolean
       )}
     </div>
   );
+}
+
+/** Een vertrekpunt voor een status als "geannuleerd" (zoals STATUSKLASSEN_OPZET in oa-contract). */
+const STATUSKLASSEN_OPZET = ["Afgebroken", "Ingetrokken", "Niet doorgegaan"];
+
+/** Namen, één per regel; wat je typt blijft staan (met spaties en lege regels), de namen zijn de niet-lege regels. */
+function NamenVeld({ id, label, namen, kan, zet, placeholder }: { id: string; label: string; namen: string[]; kan: boolean; zet: (n: string[]) => void; placeholder?: string }) {
+  const lees = (t: string) => t.split("\n").map((x) => x.trim()).filter(Boolean);
+  const [tekst, zetTekst] = useState(namen.join("\n"));
+  useEffect(() => {
+    if (JSON.stringify(lees(tekst)) !== JSON.stringify(namen)) zetTekst(namen.join("\n"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [namen]);
+  return (
+    <Textarea
+      id={id}
+      aria-label={label}
+      rows={Math.min(6, Math.max(2, tekst.split("\n").length))}
+      disabled={!kan}
+      placeholder={placeholder}
+      value={tekst}
+      onChange={(e) => {
+        zetTekst(e.target.value);
+        zet(lees(e.target.value));
+      }}
+    />
+  );
+}
+
+/** De namen van resultaten die in de selectielijst het vaakst voorkomen (Afgebroken, Ingetrokken, ...). */
+function veelgebruikteNamen(lijst: Selectielijst): string[] {
+  const tel = new Map<string, number>();
+  for (const r of lijst.resultaten) tel.set(r.naam, (tel.get(r.naam) ?? 0) + 1);
+  return [...tel].filter(([, n]) => n >= 3).sort((a, b) => b[1] - a[1]).map(([naam]) => naam);
 }

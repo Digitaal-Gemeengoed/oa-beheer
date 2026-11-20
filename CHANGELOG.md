@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## 0.16.0 — 2026-11-20
+
+**Classificatiemodel: wat er gebeurt bij een status.**
+- Nieuw onder stap 2, "Verder bij een status": een tabel met per status van het metadatamodel *Eerst classificeren*, *Hele zaak of dossier* en *Klassen voorstellen* (namen uit de selectielijst, één per regel). Bij een status als "geannuleerd" vult *Opzet* Afgebroken, Ingetrokken en Niet doorgegaan in; onder de tabel staan de namen die de selectielijst het vaakst gebruikt.
+- Attributen: *Verplicht vanaf status*, voor een attribuut dat pas bij bijvoorbeeld "afgesloten" verplicht is.
+- Statussen die het model noemt maar het metadatamodel niet meer kent (na een ander metadatamodel), staan in rood en kun je uitzetten. Voorheen kon je ze niet zien en dus ook niet publiceren.
+- De versiekaart en de audit noemen de nieuwe instellingen.
+
 ## 0.15.2 — 2026-11-19
 
 - Classificatiemodel, keuzes van een attribuut: typen met spaties ("in behandeling") en Enter voor een nieuwe regel werken weer. Het veld haalde bij elke toets lege regels en spaties aan het eind weg; nu gebeurt dat alleen in de keuzes zelf, niet in wat je typt. Het veld groeit mee met het aantal regels.
