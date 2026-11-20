@@ -1,6 +1,6 @@
 # Uitrol van het beheerportaal
 
-In de Office Assistent draait het portaal op VPS 1, naast de integratielaag; de uitrol staat in [`oa-uitrol`](https://github.com/digitaalgemeengoed/oa-uitrol) (`vps1-toegang.yml`, `server/beheer.sh`, `server/keycloak-beheer.sh`, INRICHTING.md). Deze map is een zelfstandig voorbeeld.
+In de Office Assistent draait het portaal op VPS 1, naast de integratielaag; de uitrol staat in [`oa-uitrol`](https://github.com/Digitaal-Gemeengoed/oa-uitrol) (`vps1-toegang.yml`, `server/beheer.sh`, `server/keycloak-beheer.sh`, INRICHTING.md). Deze map is een zelfstandig voorbeeld.
 
 | Bestand | Wat |
 |---|---|

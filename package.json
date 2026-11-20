@@ -9,5 +9,5 @@
     "build": "npm run build -w frontend && npm run build -w backend",
     "test": "npm test -w backend"
   },
-  "repository": { "type": "git", "url": "git+https://github.com/digitaalgemeengoed/oa-beheer.git" }
+  "repository": { "type": "git", "url": "git+https://github.com/Digitaal-Gemeengoed/oa-beheer.git" }
 }
