@@ -679,3 +679,6 @@ a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rg
 
 /* Kop: de gemeente die je beheert (GR: keuzelijst). */
 .ab-gemeente select { min-inline-size: 12rem; }
+
+/* Gemeenten: waarschuwing over Keycloak. */
+.ab-waarschuwing { padding: 8px 12px; border-left: 4px solid var(--ab-oranje); background: var(--ab-oranje-licht); border-radius: 4px; }

@@ -35,6 +35,8 @@ export interface Config {
   databaseUrl: string;
   hoofdaccountEmail: string;
   oidc: { issuer: string; clientId: string; clientSecret: string } | null;
+  /** Keycloak over het private netwerk, voor het beheren van gemeenten (http://10.66.0.3:8080). */
+  keycloakIntern?: string;
   smtp: { host: string; poort: number; gebruiker: string; wachtwoord: string; afzender: string; tls: "starttls" | "tls" | "geen" } | null;
   /**
    * Het platform (opendop-mini), voor de pagina's die de assistent zelf
@@ -47,7 +49,7 @@ export interface Config {
    * zoals op VPS 3; e-maildomeinen erachter worden genegeerd) of, zoals vroeger, één GEMEENTE.
    * Een account beheert er één, meer of alle (GR-breed).
    */
-  gemeenten: { id: string; naam: string }[];
+  gemeenten: { id: string; naam: string; domeinen: string[] }[];
   /** Statische bestanden van de frontend. */
   frontendMap: string;
   /** Alleen voor tests en lokale ontwikkeling: e-mails naar een functie in plaats van SMTP. */
@@ -87,22 +89,23 @@ export function leesConfig(env: NodeJS.ProcessEnv = process.env): Config {
         }
       : null,
     gemeenten: leesGemeenten(env.GEMEENTEN, env.GEMEENTE),
+    keycloakIntern: env.KEYCLOAK_INTERN?.trim() ? (/^https?:\/\//.test(env.KEYCLOAK_INTERN.trim()) ? env.KEYCLOAK_INTERN.trim() : `http://${env.KEYCLOAK_INTERN.trim()}`) : undefined,
     frontendMap: env.FRONTEND_MAP ?? new URL("../../frontend/dist", import.meta.url).pathname,
     vertrouwProxy: env.VERTROUW_PROXY !== "nee",
   };
 }
 
 /** "haarlem:Gemeente Haarlem:haarlem.nl,zandvoort:Gemeente Zandvoort" → [{id, naam}]. */
-export function leesGemeenten(lijst: string | undefined, enkel?: string): { id: string; naam: string }[] {
-  const uit: { id: string; naam: string }[] = [];
+export function leesGemeenten(lijst: string | undefined, enkel?: string): { id: string; naam: string; domeinen: string[] }[] {
+  const uit: { id: string; naam: string; domeinen: string[] }[] = [];
   const tekst = (lijst ?? "").trim().replace(/^"|"$/g, "") || (enkel ?? "").trim();
   for (const deel of tekst.split(",").map((x) => x.trim()).filter(Boolean)) {
     const [ruw, ...rest] = deel.split(":");
     const id = ruw!.trim().toLowerCase();
     if (!/^[a-z0-9-]{2,40}$/.test(id)) throw new ConfigFout(`GEMEENTEN: "${id}" is geen geldige code (zoals haarlem)`);
-    if (rest.length > 1 && /^[a-z0-9.+-]+$/.test(rest[rest.length - 1]!)) rest.pop();
+    const domeinen = rest.length > 1 && /^[a-z0-9.+-]+$/.test(rest[rest.length - 1]!) ? rest.pop()!.split("+").filter(Boolean) : [];
     const naam = rest.join(":").trim() || `Gemeente ${id.split("-").map((d) => (d ? d[0]!.toUpperCase() + d.slice(1) : d)).join("-")}`;
-    if (!uit.some((g) => g.id === id)) uit.push({ id, naam });
+    if (!uit.some((g) => g.id === id)) uit.push({ id, naam, domeinen });
   }
   return uit;
 }

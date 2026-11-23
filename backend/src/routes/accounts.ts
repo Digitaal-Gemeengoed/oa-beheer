@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { AppFout } from "../app.js";
 import { schrijfAudit } from "../audit.js";
 import { inTransactie } from "../db.js";
@@ -21,9 +21,9 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
   const d = app.diensten;
 
   /** Alleen gemeenten van de inrichting, en alleen binnen je eigen bereik; "alle" alleen GR-breed. */
-  const toetsBereik = (p: { bereik: string[] | null }, bereik: string[] | null) => {
-    if (bereik && bereik.some((g) => !d.config.gemeenten.some((x) => x.id === g))) throw new AppFout(400, "gemeente-onbekend", "Een van de gemeenten hoort niet bij deze inrichting.");
-    if (!binnenBereik(p.bereik, bereik)) weigerAls("bereik-buiten-eigen");
+  const toetsBereik = (req: FastifyRequest, bereik: string[] | null) => {
+    if (bereik && bereik.some((g) => !(req.gemeenten ?? []).some((x) => x.id === g))) throw new AppFout(400, "gemeente-onbekend", "Een van de gemeenten hoort niet bij deze inrichting.");
+    if (!binnenBereik(req.persoon!.bereik, bereik)) weigerAls("bereik-buiten-eigen");
   };
 
   app.get("/api/accounts", async (req) => {
@@ -84,7 +84,7 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
       for (const g of groepen) weigerAls(magGroepGeven(p, g));
       // Zonder keuze: de gemeente die je nu beheert (of GR-breed als de inrichting geen gemeenten noemt).
       const bereik = req.body.gemeenten !== undefined ? req.body.gemeenten : p.gemeente ? [p.gemeente] : null;
-      toetsBereik(p, bereik);
+      toetsBereik(req, bereik);
       const email = req.body.email.toLowerCase();
       const id = await inTransactie(d.pool, async (c) => {
         const bestaat = await c.query("SELECT 1 FROM accounts WHERE email = $1", [email]);
@@ -149,7 +149,7 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
       const p = req.persoon!;
       const a = await laadDoel(d.pool, req.params.id);
       weigerAls(magBeheren(p, a));
-      toetsBereik(p, req.body.gemeenten);
+      toetsBereik(req, req.body.gemeenten);
       await d.pool.query("UPDATE accounts SET gemeenten = $2 WHERE id = $1", [a.id, req.body.gemeenten]);
       await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "account.gemeenten", doel: a.id, ip: req.ip, resultaat: "ok", details: { oud: a.bereik ?? "alle", nieuw: req.body.gemeenten ?? "alle", reden: req.body.reden } });
       return {};

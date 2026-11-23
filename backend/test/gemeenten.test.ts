@@ -76,10 +76,10 @@ after(async () => {
 
 test("GEMEENTEN lezen: met of zonder domeinen; vroeger één GEMEENTE", () => {
   assert.deepEqual(leesGemeenten('"haarlem:Gemeente Haarlem:haarlem.nl+haarlem.org,zandvoort"'), [
-    { id: "haarlem", naam: "Gemeente Haarlem" },
-    { id: "zandvoort", naam: "Gemeente Zandvoort" },
+    { id: "haarlem", naam: "Gemeente Haarlem", domeinen: ["haarlem.nl", "haarlem.org"] },
+    { id: "zandvoort", naam: "Gemeente Zandvoort", domeinen: [] },
   ]);
-  assert.deepEqual(leesGemeenten(undefined, "haarlem"), [{ id: "haarlem", naam: "Gemeente Haarlem" }]);
+  assert.deepEqual(leesGemeenten(undefined, "haarlem"), [{ id: "haarlem", naam: "Gemeente Haarlem", domeinen: [] }]);
   assert.throws(() => leesGemeenten("Haarlem!"));
   assert.equal(binnenBereik(null, null), true);
   assert.equal(binnenBereik(["haarlem"], null), false);
@@ -87,8 +87,9 @@ test("GEMEENTEN lezen: met of zonder domeinen; vroeger één GEMEENTE", () => {
 });
 
 test("kiezen: een GR-beheerder wisselt van gemeente; een beheerder van één gemeente niet", async () => {
+  // Zonder keuze de eerste op naam: Gemeente Bloemendaal.
   let r = await vraag(cookie.gr, "GET", "/api/gemeenten");
-  assert.equal(r.json().actief.id, "haarlem");
+  assert.equal(r.json().actief.id, "bloemendaal");
   assert.equal(r.json().keuze.length, 3);
   assert.equal(r.json().grBreed, true);
   r = await vraag(cookie.gr, "PUT", "/api/gemeente", { id: "zandvoort" });
@@ -97,7 +98,7 @@ test("kiezen: een GR-beheerder wisselt van gemeente; een beheerder van één gem
   r = await vraag(cookie.haarlem, "PUT", "/api/gemeente", { id: "zandvoort" });
   assert.equal(r.statusCode, 403);
   const audit = await eigenaar.query("SELECT details FROM beheer.audit WHERE actie = 'gemeente.gekozen'");
-  assert.deepEqual(audit.rows[0].details, { van: "haarlem", naar: "zandvoort" });
+  assert.deepEqual(audit.rows[0].details, { van: "bloemendaal", naar: "zandvoort" });
 });
 
 test("het platform krijgt de gekozen gemeente, en die wordt eerst aangemeld", async () => {

@@ -46,6 +46,8 @@ export interface Ik {
   gemeente: { id: string; naam: string } | null;
   /** Hoeveel gemeenten je mag beheren; bij meer dan één kies je. */
   gemeenten: number;
+  /** Beheert alle gemeenten van de inrichting. */
+  grBreed: boolean;
 }
 
 export interface Gemeenten {

@@ -2,11 +2,11 @@ import type pg from "pg";
 import { schrijfAudit } from "./audit.js";
 import type { Db } from "./db.js";
 
-export const RECHTEN = ["accounts.view", "accounts.manage", "groups.view", "groups.manage", "audit.view", "settings.view", "settings.manage", "metadata.view", "metadata.manage", "anonimiseren.view", "classificatie.view", "classificatie.manage", "bewaartermijn.afwijken"] as const;
+export const RECHTEN = ["accounts.view", "accounts.manage", "groups.view", "groups.manage", "audit.view", "settings.view", "settings.manage", "metadata.view", "metadata.manage", "anonimiseren.view", "classificatie.view", "classificatie.manage", "bewaartermijn.afwijken", "gemeenten.manage"] as const;
 export type Recht = (typeof RECHTEN)[number];
 
 /** Rechten die alleen doorgeeft wie ze zelf heeft. */
-export const GEVOELIG: Recht[] = ["accounts.view", "accounts.manage", "groups.view", "groups.manage", "audit.view"];
+export const GEVOELIG: Recht[] = ["accounts.view", "accounts.manage", "groups.view", "groups.manage", "audit.view", "gemeenten.manage"];
 
 export interface Persoon {
   id: string;
@@ -27,6 +27,8 @@ export interface Persoon {
   gemeenten: string[];
   /** De gemeente die nu wordt beheerd ("" als het account geen gemeente mag beheren). */
   gemeente: string;
+  /** De naam daarvan, zoals "Gemeente Haarlem" (toegang vult die in). */
+  gemeenteNaam?: string;
 }
 
 /** Bereik en gekozen gemeente → wat het account mag en wat het nu beheert. */

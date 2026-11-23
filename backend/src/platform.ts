@@ -11,7 +11,7 @@ export class Platform {
   private readonly aangemeld = new Set<string>();
 
   constructor(
-    private readonly c: NonNullable<Config["platform"]> & { gemeenten?: Config["gemeenten"] },
+    private readonly c: NonNullable<Config["platform"]>,
     private readonly doeFetch: typeof fetch = fetch,
   ) {}
 
@@ -23,13 +23,19 @@ export class Platform {
   async vraag<T>(methode: "GET" | "POST" | "PUT", pad: string, persoon: Persoon, lichaam?: unknown): Promise<T> {
     if (!persoon.gemeente) throw new AppFout(403, "geen-gemeente", "Je account beheert geen gemeente van deze inrichting.");
     if (!this.aangemeld.has(persoon.gemeente) && pad !== "/gemeente") {
-      const naam = this.c.gemeenten?.find((g) => g.id === persoon.gemeente)?.naam;
+      const naam = persoon.gemeenteNaam;
       if (naam) {
         await this.stuur("PUT", "/gemeente", persoon, { naam }).catch(() => undefined);
         this.aangemeld.add(persoon.gemeente);
       }
     }
     return this.stuur<T>(methode, pad, persoon, lichaam);
+  }
+
+  /** Een gemeente aanmelden bij het platform (een nieuwe, of een nieuwe naam). */
+  async meldAan(gemeente: string, naam: string, persoon: Persoon): Promise<void> {
+    await this.stuur("PUT", "/gemeente", { ...persoon, gemeente }, { naam });
+    this.aangemeld.add(gemeente);
   }
 
   private async stuur<T>(methode: "GET" | "POST" | "PUT", pad: string, persoon: Persoon, lichaam?: unknown): Promise<T> {

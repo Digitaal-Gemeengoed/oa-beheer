@@ -95,8 +95,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       superadmin: p.superadmin,
       nood: p.nood,
       sessieEinde: s?.hard_einde ?? null,
-      gemeente: p.gemeente ? { id: p.gemeente, naam: d.config.gemeenten.find((g) => g.id === p.gemeente)?.naam ?? p.gemeente } : null,
+      gemeente: p.gemeente ? { id: p.gemeente, naam: p.gemeenteNaam ?? p.gemeente } : null,
       gemeenten: p.gemeenten.length,
+      grBreed: p.bereik === null,
     };
   });
 }

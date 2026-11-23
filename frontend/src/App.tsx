@@ -14,6 +14,7 @@ import { Anonimiseren } from "./paginas/Anonimiseren";
 import { Classificatie } from "./paginas/Classificatie";
 import { initialen } from "./paginas/gedeeld";
 import { GemeenteKiezer } from "./paginas/Gemeente";
+import { Gemeenten } from "./paginas/Gemeenten";
 
 /** Eenvoudige router op de History-API. */
 export function ga(pad: string): void {
@@ -83,6 +84,7 @@ export function App() {
   else if (pad === "/accounts/sessies" && r.has("accounts.view") && ik.niveau >= 3) inhoud = <Sessies />;
   else if (/^\/accounts\/[0-9a-f-]{36}$/i.test(pad) && r.has("accounts.view")) inhoud = <AccountDetail ik={ik} id={pad.split("/")[2]!} />;
   else if (pad === "/groepen") inhoud = <Groepen ik={ik} />;
+  else if (pad === "/gemeenten" && r.has("gemeenten.manage") && ik.grBreed) inhoud = <Gemeenten />;
   else if (pad === "/audit" && r.has("audit.view")) inhoud = <Audit />;
   else if (pad === "/instellingen" && (r.has("settings.view") || r.has("settings.manage"))) inhoud = <Instellingen ik={ik} />;
   else if ((pad === "/metadatamodel" || pad.startsWith("/metadatamodel/")) && (r.has("metadata.view") || r.has("metadata.manage"))) inhoud = <Metadatamodel ik={ik} deel={pad.slice("/metadatamodel/".length)} />;
@@ -150,6 +152,7 @@ export function App() {
             )}
             <span className="ab-nav-kop">{t("navSysteem")}</span>
             <ul>
+              {r.has("gemeenten.manage") && ik.grBreed && <li><L naar="/gemeenten">{t("gemeenten")}</L></li>}
               {r.has("audit.view") && <li><L naar="/audit">{t("audit")}</L></li>}
               {(r.has("settings.view") || r.has("settings.manage")) && <li><L naar="/instellingen">{t("instellingen")}</L></li>}
               <li><L naar="/profiel">{t("profiel")}</L></li>

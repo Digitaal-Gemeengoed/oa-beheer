@@ -3,6 +3,7 @@ import { AppFout } from "./app.js";
 import { schrijfAudit } from "./audit.js";
 import { laadPersoon, voerStatuswijzigingenUit, type Recht } from "./persoon.js";
 import { beeindig, geldigeSessie, wisSessieCookie } from "./sessies.js";
+import { laadGemeenten } from "./gemeenten.js";
 
 /** Routes zonder sessie: gezondheid en het inloggen zelf. */
 export const OPEN = new Set(["/api/gezondheid", "/api/auth/inloggen", "/api/auth/terug", "/api/nood/inloggen"]);
@@ -19,12 +20,15 @@ export async function toegang(app: FastifyInstance): Promise<void> {
     const d = app.diensten;
     await voerStatuswijzigingenUit(d.pool, d.nu());
     const s = await geldigeSessie(d, req);
-    const p = s ? await laadPersoon(d.pool, s.account, s.id, s.nood, { gemeenten: d.config.gemeenten.map((g) => g.id), gekozen: s.gemeente }) : null;
+    const gemeenten = await laadGemeenten(d.pool);
+    req.gemeenten = gemeenten;
+    const p = s ? await laadPersoon(d.pool, s.account, s.id, s.nood, { gemeenten: gemeenten.map((g) => g.id), gekozen: s.gemeente }) : null;
     if (!s || !p || p.status !== "actief") {
       if (s) await beeindig(d.pool, s.id, "account-niet-actief", d.nu());
       wisSessieCookie(antwoord);
       throw new AppFout(401, "niet-ingelogd", "Log (opnieuw) in.");
     }
+    p.gemeenteNaam = gemeenten.find((g) => g.id === p.gemeente)?.naam ?? p.gemeente;
     req.persoon = p;
   });
 

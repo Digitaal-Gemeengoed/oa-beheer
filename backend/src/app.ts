@@ -6,6 +6,8 @@ import fastifyStatic from "@fastify/static";
 import type pg from "pg";
 import type { Config } from "./config.js";
 import { Platform } from "./platform.js";
+import { KeycloakBeheer } from "./keycloakbeheer.js";
+import { vulGemeentenAan, type Gemeente } from "./gemeenten.js";
 import { Sleutels } from "./sleutels.js";
 import type { Mailer } from "./mail.js";
 import type { Oidc } from "./oidc.js";
@@ -48,9 +50,11 @@ export interface Diensten {
   oidc: Oidc | null;
   /** Het platform; null als het niet is ingesteld (dan staat het metadatamodel uit). */
   platform: Platform | null;
+  /** Gemeenten in Keycloak beheren (service-account van oa-beheer); null zonder OIDC. */
+  keycloak: KeycloakBeheer | null;
 }
 
-export type DienstenInvoer = Omit<Diensten, "sleutels" | "nu" | "mailer" | "oidc" | "platform"> & Partial<Pick<Diensten, "nu" | "mailer" | "oidc" | "platform">>;
+export type DienstenInvoer = Omit<Diensten, "sleutels" | "nu" | "mailer" | "oidc" | "platform" | "keycloak"> & Partial<Pick<Diensten, "nu" | "mailer" | "oidc" | "platform" | "keycloak">>;
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -58,6 +62,8 @@ declare module "fastify" {
   }
   interface FastifyRequest {
     persoon: Persoon | null;
+    /** De gemeenten van de inrichting, vers uit de database (toegang). */
+    gemeenten: Gemeente[] | null;
   }
 }
 
@@ -88,11 +94,22 @@ export async function bouwApp(diensten: DienstenInvoer, routes: ((app: FastifyIn
     ...diensten,
     sleutels: new Sleutels(diensten.config.adminSecret),
     nu: diensten.nu ?? (() => new Date()),
-    platform: diensten.platform !== undefined ? diensten.platform : diensten.config.platform ? new Platform({ ...diensten.config.platform, gemeenten: diensten.config.gemeenten }) : null,
+    platform: diensten.platform !== undefined ? diensten.platform : diensten.config.platform ? new Platform(diensten.config.platform) : null,
+    keycloak:
+      diensten.keycloak !== undefined
+        ? diensten.keycloak
+        : diensten.config.oidc
+          ? new KeycloakBeheer(diensten.config.oidc.issuer, diensten.config.oidc.clientId, diensten.config.oidc.clientSecret, fetch, diensten.config.keycloakIntern)
+          : null,
     mailer: diensten.mailer ?? { verstuur: async () => {} },
     oidc: diensten.oidc ?? null,
   });
   app.decorateRequest("persoon", null);
+  app.decorateRequest("gemeenten", null);
+  // De gemeenten uit de configuratie (GEMEENTEN of GEMEENTE) in de tabel, als ze er nog niet staan.
+  app.addHook("onReady", async () => {
+    await vulGemeentenAan(diensten.pool, diensten.config.gemeenten);
+  });
 
   await app.register(fastifyCookie);
 

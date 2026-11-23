@@ -1,5 +1,15 @@
 # Wijzigingen
 
+## 0.18.0 — 2026-11-23
+
+**Gemeenten beheren in het portaal.** Ontwerp: `oa-uitrol/docs/multi-tenant.md`.
+- Nieuwe pagina *Gemeenten*, alleen voor GR-brede beheerders (bereik "Alle gemeenten") met het nieuwe recht *Gemeenten beheren* (`gemeenten.manage`, gevoelig). Een gemeente toevoegen met naam, code, e-maildomeinen en reden; naam en domeinen wijzigen. Geen vier-ogenprincipe.
+- Domeinen worden genormaliseerd en getoetst: geen algemene domeinen (gmail.com, outlook.com, ziggo.nl …) of hun subdomeinen, geen domein dat al bij een andere gemeente hoort.
+- Keycloak is de bron: het portaal maakt en wijzigt de organisatie via de beheer-API (service-account van `oa-beheer`, alleen `manage-organizations` en `view-users`), over het interne adres `KEYCLOAK_INTERN`. Gebruikers koppelt de timer op VPS 3 binnen een kwartier.
+- Het portaal meldt een nieuwe of hernoemde gemeente meteen aan bij het platform.
+- Migratie 007: tabel `gemeenten` (naam, domeinen, wie en wanneer). `GEMEENTEN`/`GEMEENTE` vullen alleen de beginstand; organisaties die alleen in Keycloak staan, neemt het overzicht over. Audit: `gemeente.aangemaakt`, `gemeente.gewijzigd`.
+- `/api/ik` geeft de naam van de actieve gemeente en `grBreed`.
+
 ## 0.17.0 — 2026-11-23
 
 **Meer gemeenten in één inrichting (GR).** Ontwerp: `oa-uitrol/docs/multi-tenant.md`.
