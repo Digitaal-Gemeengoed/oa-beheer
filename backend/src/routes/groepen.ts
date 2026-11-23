@@ -34,7 +34,7 @@ async function magGroepWijzigen(db: Db, p: Persoon, id: string): Promise<Groep &
   if (!g) throw new AppFout(404, "niet-gevonden", "Deze groep bestaat niet.");
   weigerAls(magGroepGeven(p, g));
   const leden = (await db.query(
-    `SELECT a.id, a.hoofdaccount, coalesce(max(g2.niveau), 0)::int AS niveau FROM lidmaatschappen l JOIN accounts a ON a.id = l.account
+    `SELECT a.id, a.hoofdaccount, a.gemeenten AS bereik, coalesce(max(g2.niveau), 0)::int AS niveau FROM lidmaatschappen l JOIN accounts a ON a.id = l.account
        LEFT JOIN lidmaatschappen l2 ON l2.account = a.id LEFT JOIN groepen g2 ON g2.id = l2.groep
       WHERE l.groep = $1 GROUP BY a.id`,
     [id],

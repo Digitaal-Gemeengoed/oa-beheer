@@ -23,7 +23,7 @@ async function main(): Promise<void> {
   const config = leesConfig();
 
   if (opdracht === "migreer") {
-    await migreer({ eigenaarUrl, appWachtwoord: process.env.DATABASE_APP_WACHTWOORD, hoofdaccountEmail: config.hoofdaccountEmail, log: (s) => console.log(s) });
+    await migreer({ eigenaarUrl, appWachtwoord: process.env.DATABASE_APP_WACHTWOORD, hoofdaccountEmail: config.hoofdaccountEmail, standaardGemeente: config.gemeenten[0]?.id, log: (s) => console.log(s) });
     return;
   }
 

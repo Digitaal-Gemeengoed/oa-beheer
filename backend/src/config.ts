@@ -41,7 +41,13 @@ export interface Config {
    * instellen, zoals het metadatamodel. Zonder deze instellingen staan die
    * pagina's uit. De dienstsleutel is dezelfde die de integratielaag gebruikt.
    */
-  platform: { url: string; dienstsleutel: string; gemeente: string } | null;
+  platform: { url: string; dienstsleutel: string } | null;
+  /**
+   * De gemeenten van de inrichting: GEMEENTEN ("haarlem:Gemeente Haarlem,zandvoort:Gemeente Zandvoort",
+   * zoals op VPS 3; e-maildomeinen erachter worden genegeerd) of, zoals vroeger, één GEMEENTE.
+   * Een account beheert er één, meer of alle (GR-breed).
+   */
+  gemeenten: { id: string; naam: string }[];
   /** Statische bestanden van de frontend. */
   frontendMap: string;
   /** Alleen voor tests en lokale ontwikkeling: e-mails naar een functie in plaats van SMTP. */
@@ -78,14 +84,25 @@ export function leesConfig(env: NodeJS.ProcessEnv = process.env): Config {
       ? {
           url: nodig(env, "PLATFORM_URL").replace(/\/$/, ""),
           dienstsleutel: geheim(env, "PLATFORM_DIENSTSLEUTEL", 16),
-          gemeente: (() => {
-            const g = nodig(env, "GEMEENTE").toLowerCase();
-            if (!/^[a-z0-9-]{2,40}$/.test(g)) throw new ConfigFout("GEMEENTE is geen geldige code (zoals haarlem)");
-            return g;
-          })(),
         }
       : null,
+    gemeenten: leesGemeenten(env.GEMEENTEN, env.GEMEENTE),
     frontendMap: env.FRONTEND_MAP ?? new URL("../../frontend/dist", import.meta.url).pathname,
     vertrouwProxy: env.VERTROUW_PROXY !== "nee",
   };
+}
+
+/** "haarlem:Gemeente Haarlem:haarlem.nl,zandvoort:Gemeente Zandvoort" → [{id, naam}]. */
+export function leesGemeenten(lijst: string | undefined, enkel?: string): { id: string; naam: string }[] {
+  const uit: { id: string; naam: string }[] = [];
+  const tekst = (lijst ?? "").trim().replace(/^"|"$/g, "") || (enkel ?? "").trim();
+  for (const deel of tekst.split(",").map((x) => x.trim()).filter(Boolean)) {
+    const [ruw, ...rest] = deel.split(":");
+    const id = ruw!.trim().toLowerCase();
+    if (!/^[a-z0-9-]{2,40}$/.test(id)) throw new ConfigFout(`GEMEENTEN: "${id}" is geen geldige code (zoals haarlem)`);
+    if (rest.length > 1 && /^[a-z0-9.+-]+$/.test(rest[rest.length - 1]!)) rest.pop();
+    const naam = rest.join(":").trim() || `Gemeente ${id.split("-").map((d) => (d ? d[0]!.toUpperCase() + d.slice(1) : d)).join("-")}`;
+    if (!uit.some((g) => g.id === id)) uit.push({ id, naam });
+  }
+  return uit;
 }

@@ -8,16 +8,31 @@ import type { Persoon } from "./persoon.js";
  * een nieuw metadatamodel publiceerde.
  */
 export class Platform {
+  private readonly aangemeld = new Set<string>();
+
   constructor(
-    private readonly c: NonNullable<Config["platform"]>,
+    private readonly c: NonNullable<Config["platform"]> & { gemeenten?: Config["gemeenten"] },
     private readonly doeFetch: typeof fetch = fetch,
   ) {}
 
-  get gemeente(): string {
-    return this.c.gemeente;
+  /**
+   * Altijd voor de gemeente die de beheerder nu beheert (persoon.gemeente).
+   * De eerste keer per gemeente meldt het portaal die aan bij het platform,
+   * zodat een gemeente die nog niemand gebruikte daar klaarstaat.
+   */
+  async vraag<T>(methode: "GET" | "POST" | "PUT", pad: string, persoon: Persoon, lichaam?: unknown): Promise<T> {
+    if (!persoon.gemeente) throw new AppFout(403, "geen-gemeente", "Je account beheert geen gemeente van deze inrichting.");
+    if (!this.aangemeld.has(persoon.gemeente) && pad !== "/gemeente") {
+      const naam = this.c.gemeenten?.find((g) => g.id === persoon.gemeente)?.naam;
+      if (naam) {
+        await this.stuur("PUT", "/gemeente", persoon, { naam }).catch(() => undefined);
+        this.aangemeld.add(persoon.gemeente);
+      }
+    }
+    return this.stuur<T>(methode, pad, persoon, lichaam);
   }
 
-  async vraag<T>(methode: "GET" | "POST", pad: string, persoon: Persoon, lichaam?: unknown): Promise<T> {
+  private async stuur<T>(methode: "GET" | "POST" | "PUT", pad: string, persoon: Persoon, lichaam?: unknown): Promise<T> {
     const actor = Buffer.from(JSON.stringify({ sub: `oa-beheer:${persoon.id}`, naam: persoon.email, beheerder: true })).toString("base64url");
     let r: Response;
     try {
@@ -25,7 +40,7 @@ export class Platform {
         method: methode,
         headers: {
           "x-oa-dienstsleutel": this.c.dienstsleutel,
-          "x-oa-gemeente": this.c.gemeente,
+          "x-oa-gemeente": persoon.gemeente,
           "x-oa-actor": actor,
           ...(lichaam !== undefined ? { "content-type": "application/json" } : {}),
         },

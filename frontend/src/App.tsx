@@ -13,6 +13,7 @@ import { Metadatamodel } from "./paginas/Metadatamodel";
 import { Anonimiseren } from "./paginas/Anonimiseren";
 import { Classificatie } from "./paginas/Classificatie";
 import { initialen } from "./paginas/gedeeld";
+import { GemeenteKiezer } from "./paginas/Gemeente";
 
 /** Eenvoudige router op de History-API. */
 export function ga(pad: string): void {
@@ -99,6 +100,7 @@ export function App() {
           <span className="ab-merk" aria-hidden="true">OA</span>
           <span className="ab-kop-titel">{t("titel")}</span>
           <span className="ab-kop-wie">
+            <GemeenteKiezer ik={ik} />
             <span className="ab-wie">
               <span className="ab-avatar" aria-hidden="true">{initialen(ik.naam)}</span>
               <span>{ik.naam}</span>

@@ -1,5 +1,14 @@
 # Wijzigingen
 
+## 0.17.0 — 2026-11-23
+
+**Meer gemeenten in één inrichting (GR).** Ontwerp: `oa-uitrol/docs/multi-tenant.md`.
+- `GEMEENTEN` (zoals op VPS 3; via `BEHEER_GEMEENTEN` in oa-uitrol) noemt de gemeenten van de inrichting; zonder blijft `GEMEENTE` werken.
+- Een account beheert één, meer of alle gemeenten (migratie 006: `accounts.gemeenten`, NULL = alle). Wie meer beheert, kiest in de kop de gemeente; de keuze geldt voor de sessie (`sessies.gemeente`) en gaat mee naar het platform en in de audit van elke aanroep.
+- Een beheerder van één gemeente ziet en beheert alleen accounts die uitsluitend bij zijn gemeenten horen, en kent alleen die gemeenten toe; "Alle gemeenten" alleen GR-breed. Nieuwe accounts krijgen standaard de gemeente die je nu beheert. `PUT /api/accounts/:id/gemeenten`, met reden in de audit.
+- Concepten van het metadatamodel zijn per gemeente; bestaande concepten horen bij de eerste gemeente.
+- Het portaal meldt een gemeente de eerste keer aan bij het platform.
+
 ## 0.16.0 — 2026-11-20
 
 **Classificatiemodel: wat er gebeurt bij een status.**

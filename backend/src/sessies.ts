@@ -59,6 +59,8 @@ export interface GeldigeSessie {
   nood: boolean;
   laatst_actief: Date;
   hard_einde: Date;
+  /** De gemeente die de beheerder in deze sessie beheert; null = de eerste die hij mag. */
+  gemeente: string | null;
 }
 
 /**
@@ -70,7 +72,7 @@ export async function geldigeSessie(d: Diensten, req: FastifyRequest): Promise<G
   const token = req.cookies[COOKIE];
   if (!token || token.length > 100) return null;
   const r = await d.pool.query(
-    "SELECT id, account, nood, laatst_actief, hard_einde FROM sessies WHERE token_hash = $1 AND beeindigd IS NULL",
+    "SELECT id, account, nood, laatst_actief, hard_einde, gemeente FROM sessies WHERE token_hash = $1 AND beeindigd IS NULL",
     [d.sleutels.sessieHash(token)],
   );
   const s = r.rows[0] as GeldigeSessie | undefined;

@@ -88,7 +88,7 @@ export async function classificatieRoutes(app: FastifyInstance): Promise<void> {
     magZien(req);
     if (!d.platform) return { aan: false };
     const r = await platformVan(req).vraag<Record<string, unknown>>("GET", "/classificatiemodel", req.persoon!);
-    return { aan: true, gemeente: d.platform.gemeente, ...r };
+    return { aan: true, gemeente: req.persoon!.gemeente, ...r };
   });
 
   app.post<{ Body: { config: Config } }>(

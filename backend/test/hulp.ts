@@ -20,6 +20,7 @@ export function testConfig(db: string, extra: Record<string, string> = {}): Conf
     DATABASE_URL: dbUrl(db, "oa_beheer_app"),
     HOOFDACCOUNT_EMAIL: "beheerder@test.nl",
     FRONTEND_MAP: "/bestaat/niet",
+    GEMEENTEN: "haarlem:Gemeente Haarlem",
     ...extra,
   });
 }

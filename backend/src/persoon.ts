@@ -21,15 +21,33 @@ export interface Persoon {
   superadmin: boolean;
   nood: boolean;
   sessie: string;
+  /** De gemeenten die dit account beheert; null = alle gemeenten van de inrichting (GR-breed). */
+  bereik: string[] | null;
+  /** Wat het account in deze inrichting werkelijk mag beheren (bereik ∩ de gemeenten van de inrichting). */
+  gemeenten: string[];
+  /** De gemeente die nu wordt beheerd ("" als het account geen gemeente mag beheren). */
+  gemeente: string;
+}
+
+/** Bereik en gekozen gemeente → wat het account mag en wat het nu beheert. */
+export function gemeentenVan(bereik: string[] | null, inrichting: string[], gekozen: string | null | undefined): { gemeenten: string[]; gemeente: string } {
+  const gemeenten = bereik === null ? [...inrichting] : inrichting.filter((g) => bereik.includes(g));
+  return { gemeenten, gemeente: gekozen && gemeenten.includes(gekozen) ? gekozen : (gemeenten[0] ?? "") };
 }
 
 /**
  * Rechten en status, bij elk verzoek vers uit de database: een wijziging
  * werkt meteen. Rechten tellen op over groepen; het niveau is het hoogste.
  */
-export async function laadPersoon(db: Db, account: string, sessie: string, nood: boolean): Promise<Persoon | null> {
+export async function laadPersoon(
+  db: Db,
+  account: string,
+  sessie: string,
+  nood: boolean,
+  g: { gemeenten: string[]; gekozen?: string | null } = { gemeenten: [] },
+): Promise<Persoon | null> {
   const r = await db.query(
-    `SELECT a.id, a.email, a.naam, a.taal, a.status, a.hoofdaccount,
+    `SELECT a.id, a.email, a.naam, a.taal, a.status, a.hoofdaccount, a.gemeenten AS bereik,
             coalesce(array_agg(DISTINCT r) FILTER (WHERE r IS NOT NULL), '{}') AS rechten,
             coalesce(max(g.niveau), 0) AS niveau,
             coalesce(bool_or(g.superadmin), false) AS superadmin
@@ -44,13 +62,13 @@ export async function laadPersoon(db: Db, account: string, sessie: string, nood:
   const a = r.rows[0];
   if (!a) return null;
   if (a.hoofdaccount && nood) {
-    return { ...a, rechten: new Set(RECHTEN), niveau: 4, superadmin: true, nood: true, sessie };
+    return { ...a, bereik: null, ...gemeentenVan(null, g.gemeenten, g.gekozen), rechten: new Set(RECHTEN), niveau: 4, superadmin: true, nood: true, sessie };
   }
   if (a.hoofdaccount) return null; // het hoofdaccount werkt alleen via /emergency
   // Een superadmin heeft alle rechten, ook rechten die na het aanmaken van de
   // groep zijn bijgekomen (zoals metadata.manage en classificatie.manage).
   const rechten = a.superadmin ? new Set<Recht>(RECHTEN) : new Set(a.rechten as Recht[]);
-  return { ...a, rechten, niveau: Number(a.niveau), superadmin: a.superadmin, nood: false, sessie };
+  return { ...a, ...gemeentenVan(a.bereik, g.gemeenten, g.gekozen), rechten, niveau: Number(a.niveau), superadmin: a.superadmin, nood: false, sessie };
 }
 
 /**

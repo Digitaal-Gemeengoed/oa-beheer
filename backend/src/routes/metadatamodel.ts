@@ -63,14 +63,14 @@ export async function metadatamodelRoutes(app: FastifyInstance): Promise<void> {
       p.vraag<{ versie: number; titel: string; schema: Record<string, unknown> }>("GET", `/objecttypen/${OBJECTTYPE}`, persoon),
       p.vraag<unknown[]>("GET", `/objecttypen/${OBJECTTYPE}/versies`, persoon),
       d.pool.query(
-        `SELECT c.config, c.gewijzigd, a.email AS door FROM metadatamodel_concept c LEFT JOIN accounts a ON a.id = c.gewijzigd_door WHERE c.objecttype = $1`,
-        [OBJECTTYPE],
+        `SELECT c.config, c.gewijzigd, a.email AS door FROM metadatamodel_concept c LEFT JOIN accounts a ON a.id = c.gewijzigd_door WHERE c.gemeente = $1 AND c.objecttype = $2`,
+        [persoon.gemeente, OBJECTTYPE],
       ),
     ]);
     const k = concept.rows[0];
     return {
       aan: true,
-      gemeente: p.gemeente,
+      gemeente: persoon.gemeente,
       objecttype: OBJECTTYPE,
       catalogus: catalogus.waarde,
       actief: { versie: actief.versie, titel: actief.titel, config: actief.schema["x-oa-config"] ?? null, schema: actief.schema },
@@ -86,9 +86,9 @@ export async function metadatamodelRoutes(app: FastifyInstance): Promise<void> {
     async (req) => {
       vereis(req, "metadata.manage");
       await d.pool.query(
-        `INSERT INTO metadatamodel_concept (objecttype, config, gewijzigd, gewijzigd_door) VALUES ($1, $2, $3, $4)
-         ON CONFLICT (objecttype) DO UPDATE SET config = EXCLUDED.config, gewijzigd = EXCLUDED.gewijzigd, gewijzigd_door = EXCLUDED.gewijzigd_door`,
-        [OBJECTTYPE, JSON.stringify(req.body.config), d.nu(), req.persoon!.id],
+        `INSERT INTO metadatamodel_concept (gemeente, objecttype, config, gewijzigd, gewijzigd_door) VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (gemeente, objecttype) DO UPDATE SET config = EXCLUDED.config, gewijzigd = EXCLUDED.gewijzigd, gewijzigd_door = EXCLUDED.gewijzigd_door`,
+        [req.persoon!.gemeente, OBJECTTYPE, JSON.stringify(req.body.config), d.nu(), req.persoon!.id],
       );
       return { bewaard: d.nu() };
     },
@@ -96,7 +96,7 @@ export async function metadatamodelRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete("/api/metadatamodel/concept", async (req) => {
     vereis(req, "metadata.manage");
-    await d.pool.query("DELETE FROM metadatamodel_concept WHERE objecttype = $1", [OBJECTTYPE]);
+    await d.pool.query("DELETE FROM metadatamodel_concept WHERE gemeente = $1 AND objecttype = $2", [req.persoon!.gemeente, OBJECTTYPE]);
     return { weg: true };
   });
 
@@ -128,7 +128,7 @@ export async function metadatamodelRoutes(app: FastifyInstance): Promise<void> {
         await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "metadatamodel.gepubliceerd", doel: OBJECTTYPE, ip: req.ip, resultaat: "geweigerd", details: { basis: req.body.config.basis, reden: req.body.reden, ...(req.body.ingang ? { ingang: req.body.ingang } : {}), fout: (e as Error).message } });
         throw e;
       }
-      await d.pool.query("DELETE FROM metadatamodel_concept WHERE objecttype = $1", [OBJECTTYPE]);
+      await d.pool.query("DELETE FROM metadatamodel_concept WHERE gemeente = $1 AND objecttype = $2", [req.persoon!.gemeente, OBJECTTYPE]);
       await schrijfAudit(d.pool, {
         account: p.id,
         email: p.email,

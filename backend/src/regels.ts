@@ -9,11 +9,22 @@ import { GEVOELIG, type Persoon, type Recht } from "./persoon.js";
  * - Een superadmin beheert iedereen behalve zichzelf en het hoofdaccount.
  * - Anderen beheren alleen accounts met een lager niveau dan hun eigen.
  * - Een recht over accounts, groepen of de audit geeft alleen door wie het zelf heeft.
+ * - Wie niet GR-breed beheert (bereik is een lijst gemeenten), beheert alleen
+ *   accounts die uitsluitend bij gemeenten uit dat bereik horen.
  */
 export interface Doelaccount {
   id: string;
   hoofdaccount: boolean;
   niveau: number;
+  /** De gemeenten van het account; null of ontbrekend = alle (GR-breed). */
+  bereik?: string[] | null;
+}
+
+/** Valt het bereik `doel` binnen `actor`? null = alle gemeenten. */
+export function binnenBereik(actor: string[] | null | undefined, doel: string[] | null | undefined): boolean {
+  if (actor == null) return true;
+  if (doel == null) return false;
+  return doel.every((g) => actor.includes(g));
 }
 
 export interface Groep {
@@ -23,9 +34,10 @@ export interface Groep {
   rechten: Recht[];
 }
 
-export function magBeheren(actor: Pick<Persoon, "id" | "superadmin" | "niveau">, doel: Doelaccount): string | null {
+export function magBeheren(actor: Pick<Persoon, "id" | "superadmin" | "niveau"> & { bereik?: string[] | null }, doel: Doelaccount): string | null {
   if (doel.hoofdaccount) return "hoofdaccount";
   if (doel.id === actor.id) return "eigen-account";
+  if (!binnenBereik(actor.bereik, doel.bereik)) return "andere-gemeente";
   if (actor.superadmin) return null;
   if (doel.niveau >= actor.niveau) return "niveau";
   return null;
@@ -48,6 +60,8 @@ const MELDINGEN: Record<string, string> = {
   superadmin: "Alleen een superadmin geeft superadmin-rechten.",
   "recht-niet-zelf": "Een recht dat je zelf niet hebt, kun je niet doorgeven.",
   "lid-buiten-niveau": "In deze groep zitten mensen die je niet mag beheren.",
+  "andere-gemeente": "Dit account hoort (ook) bij een gemeente die jij niet beheert.",
+  "bereik-buiten-eigen": "Je kunt alleen gemeenten toekennen die je zelf beheert.",
 };
 
 export function weigerAls(reden: string | null): void {
@@ -57,7 +71,7 @@ export function weigerAls(reden: string | null): void {
 export async function laadDoel(db: Db, id: string): Promise<Doelaccount & { email: string; status: string; naam: string }> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new AppFout(404, "niet-gevonden", "Dit account bestaat niet.");
   const r = await db.query(
-    `SELECT a.id, a.email, a.naam, a.taal, a.status, a.hoofdaccount, coalesce(max(g.niveau), 0)::int AS niveau
+    `SELECT a.id, a.email, a.naam, a.taal, a.status, a.hoofdaccount, a.gemeenten AS bereik, coalesce(max(g.niveau), 0)::int AS niveau
        FROM accounts a LEFT JOIN lidmaatschappen l ON l.account = a.id LEFT JOIN groepen g ON g.id = l.groep
       WHERE a.id = $1 GROUP BY a.id`,
     [id],

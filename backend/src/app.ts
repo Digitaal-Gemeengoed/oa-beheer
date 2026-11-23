@@ -88,7 +88,7 @@ export async function bouwApp(diensten: DienstenInvoer, routes: ((app: FastifyIn
     ...diensten,
     sleutels: new Sleutels(diensten.config.adminSecret),
     nu: diensten.nu ?? (() => new Date()),
-    platform: diensten.platform !== undefined ? diensten.platform : diensten.config.platform ? new Platform(diensten.config.platform) : null,
+    platform: diensten.platform !== undefined ? diensten.platform : diensten.config.platform ? new Platform({ ...diensten.config.platform, gemeenten: diensten.config.gemeenten }) : null,
     mailer: diensten.mailer ?? { verstuur: async () => {} },
     oidc: diensten.oidc ?? null,
   });

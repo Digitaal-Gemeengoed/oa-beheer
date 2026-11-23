@@ -19,7 +19,7 @@ export async function toegang(app: FastifyInstance): Promise<void> {
     const d = app.diensten;
     await voerStatuswijzigingenUit(d.pool, d.nu());
     const s = await geldigeSessie(d, req);
-    const p = s ? await laadPersoon(d.pool, s.account, s.id, s.nood) : null;
+    const p = s ? await laadPersoon(d.pool, s.account, s.id, s.nood, { gemeenten: d.config.gemeenten.map((g) => g.id), gekozen: s.gemeente }) : null;
     if (!s || !p || p.status !== "actief") {
       if (s) await beeindig(d.pool, s.id, "account-niet-actief", d.nu());
       wisSessieCookie(antwoord);
@@ -40,7 +40,7 @@ export async function toegang(app: FastifyInstance): Promise<void> {
       doel: params.id ?? null,
       ip: req.ip,
       resultaat: String(antwoord.statusCode),
-      details: p.nood ? { nood: true } : {},
+      details: { ...(p.nood ? { nood: true } : {}), ...(p.gemeente ? { gemeente: p.gemeente } : {}) },
     });
     return lading;
   });

@@ -42,4 +42,15 @@ export interface Ik {
   superadmin: boolean;
   nood: boolean;
   sessieEinde: string | null;
+  /** De gemeente die je nu beheert. */
+  gemeente: { id: string; naam: string } | null;
+  /** Hoeveel gemeenten je mag beheren; bij meer dan één kies je. */
+  gemeenten: number;
+}
+
+export interface Gemeenten {
+  actief: { id: string; naam: string } | null;
+  keuze: { id: string; naam: string }[];
+  inrichting: { id: string; naam: string }[];
+  grBreed: boolean;
 }

@@ -8,7 +8,7 @@ const MAP = new URL("../migraties/", import.meta.url).pathname;
  * Migraties als eigenaar van de database, het wachtwoord van de app-rol, en
  * het hoofdaccount. Het hoofdaccount bestaat daarna altijd (triggers).
  */
-export async function migreer(opties: { eigenaarUrl: string; appWachtwoord?: string; hoofdaccountEmail: string; log?: (s: string) => void }): Promise<void> {
+export async function migreer(opties: { eigenaarUrl: string; appWachtwoord?: string; hoofdaccountEmail: string; standaardGemeente?: string; log?: (s: string) => void }): Promise<void> {
   const log = opties.log ?? (() => {});
   const c = new pg.Client({ connectionString: opties.eigenaarUrl });
   await c.connect();
@@ -21,6 +21,10 @@ export async function migreer(opties: { eigenaarUrl: string; appWachtwoord?: str
       await c.query("INSERT INTO public.beheer_migraties (naam) VALUES ($1)", [naam]);
       await c.query("COMMIT");
       log(`migratie ${naam}`);
+    }
+    // Concepten van vóór migratie 006 horen bij de (eerste) gemeente van de inrichting.
+    if (opties.standaardGemeente) {
+      await c.query("UPDATE beheer.metadatamodel_concept SET gemeente = $1 WHERE gemeente = ''", [opties.standaardGemeente]);
     }
     if (opties.appWachtwoord) {
       // ALTER ROLE kent geen parameters; het wachtwoord gaat ge-escaped mee.

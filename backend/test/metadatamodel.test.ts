@@ -53,7 +53,7 @@ before(async () => {
   const d = await verseDatabase("oa_beheer_md");
   pool = d.pool;
   eigenaar = d.eigenaar;
-  const platform = new Platform({ url: "http://platform.test", dienstsleutel: "platform-sleutel-0123456789", gemeente: "haarlem" }, nepFetch);
+  const platform = new Platform({ url: "http://platform.test", dienstsleutel: "platform-sleutel-0123456789" }, nepFetch);
   app = await bouwApp({ config: d.config, pool, nu: () => klok, platform }, routes);
   zonder = await bouwApp({ config: d.config, pool, nu: () => klok, platform: null }, routes);
   const g = async (naam: string, rechten: string[]) => (await pool.query("INSERT INTO groepen (naam, rechten, niveau) VALUES ($1, $2, 2) RETURNING id", [naam, rechten])).rows[0].id;

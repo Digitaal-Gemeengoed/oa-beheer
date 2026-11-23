@@ -4,21 +4,32 @@ import { schrijfAudit } from "../audit.js";
 import { inTransactie } from "../db.js";
 import { bericht } from "../mail.js";
 import { voerStatuswijzigingenUit } from "../persoon.js";
-import { laadDoel, laadGroepen, magBeheren, magGroepGeven, weigerAls } from "../regels.js";
+import { binnenBereik, laadDoel, laadGroepen, magBeheren, magGroepGeven, weigerAls } from "../regels.js";
 import { beeindigAlle } from "../sessies.js";
 import { vereis } from "../toegang.js";
 
 const UUID = { type: "string", pattern: "^[0-9a-fA-F-]{36}$" } as const;
 const REDEN = { type: "string", minLength: 5, maxLength: 1000 } as const;
 const STATUS = { enum: ["actief", "geblokkeerd", "gedeactiveerd"] } as const;
+/** De gemeenten van een account: een lijst, of null = alle (GR-breed). */
+const BEREIK = { anyOf: [{ type: "null" }, { type: "array", minItems: 1, maxItems: 100, uniqueItems: true, items: { type: "string", pattern: "^[a-z0-9-]{2,40}$" } }] } as const;
+
+/** Een beheerder ziet zichzelf en de accounts binnen zijn bereik. */
+const zichtbaar = (p: { id: string; bereik: string[] | null }, a: { id: string; bereik?: string[] | null }) => a.id === p.id || binnenBereik(p.bereik, a.bereik);
 
 export async function accountRoutes(app: FastifyInstance): Promise<void> {
   const d = app.diensten;
 
+  /** Alleen gemeenten van de inrichting, en alleen binnen je eigen bereik; "alle" alleen GR-breed. */
+  const toetsBereik = (p: { bereik: string[] | null }, bereik: string[] | null) => {
+    if (bereik && bereik.some((g) => !d.config.gemeenten.some((x) => x.id === g))) throw new AppFout(400, "gemeente-onbekend", "Een van de gemeenten hoort niet bij deze inrichting.");
+    if (!binnenBereik(p.bereik, bereik)) weigerAls("bereik-buiten-eigen");
+  };
+
   app.get("/api/accounts", async (req) => {
     vereis(req, "accounts.view");
     const r = await d.pool.query(
-      `SELECT a.id, a.email, a.naam, a.taal, a.status, a.hoofdaccount, a.aangemaakt,
+      `SELECT a.id, a.email, a.naam, a.taal, a.status, a.hoofdaccount, a.aangemaakt, a.gemeenten AS bereik,
               coalesce(max(g.niveau), 0)::int AS niveau,
               coalesce(array_agg(g.naam ORDER BY g.naam) FILTER (WHERE g.id IS NOT NULL), '{}') AS groepen,
               (SELECT max(laatst_actief) FROM sessies s WHERE s.account = a.id) AS laatst_actief,
@@ -27,12 +38,13 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
         GROUP BY a.id ORDER BY a.hoofdaccount DESC, a.naam`,
     );
     const p = req.persoon!;
-    return r.rows.map((a) => ({ ...a, beheerbaar: p.rechten.has("accounts.manage") && magBeheren(p, a) === null }));
+    return r.rows.filter((a) => zichtbaar(p, a)).map((a) => ({ ...a, beheerbaar: p.rechten.has("accounts.manage") && magBeheren(p, a) === null }));
   });
 
   app.get<{ Params: { id: string } }>("/api/accounts/:id", { schema: { params: { type: "object", properties: { id: UUID } } } }, async (req) => {
     vereis(req, "accounts.view");
     const a = await laadDoel(d.pool, req.params.id);
+    if (!zichtbaar(req.persoon!, a)) throw new AppFout(404, "niet-gevonden", "Dit account bestaat niet.");
     const groepen = (await d.pool.query("SELECT g.id, g.naam, g.niveau FROM lidmaatschappen l JOIN groepen g ON g.id = l.groep WHERE l.account = $1 ORDER BY g.naam", [a.id])).rows;
     const wijzigingen = (await d.pool.query(
       `SELECT w.id, w.status, w.reden, w.ingang, w.uitgevoerd, w.aangemaakt, b.naam AS door, w.geannuleerd, w.reden_annulering, x.naam AS geannuleerd_door
@@ -46,7 +58,7 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /** Een account toevoegen. Nooit door zelf aan te melden; de persoon logt in via Keycloak met dit e-mailadres. */
-  app.post<{ Body: { email: string; naam: string; taal: "nl" | "en"; groepen: string[]; reden: string } }>(
+  app.post<{ Body: { email: string; naam: string; taal: "nl" | "en"; groepen: string[]; gemeenten?: string[] | null; reden: string } }>(
     "/api/accounts",
     {
       schema: {
@@ -59,6 +71,7 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
             naam: { type: "string", minLength: 1, maxLength: 200 },
             taal: { enum: ["nl", "en"] },
             groepen: { type: "array", maxItems: 20, items: UUID, uniqueItems: true },
+            gemeenten: BEREIK,
             reden: REDEN,
           },
         },
@@ -69,13 +82,16 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
       const p = req.persoon!;
       const groepen = await laadGroepen(d.pool, req.body.groepen);
       for (const g of groepen) weigerAls(magGroepGeven(p, g));
+      // Zonder keuze: de gemeente die je nu beheert (of GR-breed als de inrichting geen gemeenten noemt).
+      const bereik = req.body.gemeenten !== undefined ? req.body.gemeenten : p.gemeente ? [p.gemeente] : null;
+      toetsBereik(p, bereik);
       const email = req.body.email.toLowerCase();
       const id = await inTransactie(d.pool, async (c) => {
         const bestaat = await c.query("SELECT 1 FROM accounts WHERE email = $1", [email]);
         if (bestaat.rowCount) throw new AppFout(409, "bestaat-al", "Er is al een account met dit e-mailadres.");
-        const nieuw = (await c.query("INSERT INTO accounts (email, naam, taal, aangemaakt_door) VALUES ($1, $2, $3, $4) RETURNING id", [email, req.body.naam, req.body.taal, p.id])).rows[0].id;
+        const nieuw = (await c.query("INSERT INTO accounts (email, naam, taal, aangemaakt_door, gemeenten) VALUES ($1, $2, $3, $4, $5) RETURNING id", [email, req.body.naam, req.body.taal, p.id, bereik])).rows[0].id;
         for (const g of groepen) await c.query("INSERT INTO lidmaatschappen (account, groep) VALUES ($1, $2)", [nieuw, g.id]);
-        await schrijfAudit(c, { account: p.id, email: p.email, actie: "account.aangemaakt", doel: nieuw, ip: req.ip, resultaat: "ok", details: { email, naam: req.body.naam, groepen: groepen.map((g) => g.naam), reden: req.body.reden } });
+        await schrijfAudit(c, { account: p.id, email: p.email, actie: "account.aangemaakt", doel: nieuw, ip: req.ip, resultaat: "ok", details: { email, naam: req.body.naam, groepen: groepen.map((g) => g.naam), gemeenten: bereik ?? "alle", reden: req.body.reden } });
         return nieuw;
       });
       const b = req.body.taal === "nl"
@@ -124,6 +140,22 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  /** De gemeenten van een account: een lijst, of null = alle gemeenten van de inrichting. */
+  app.put<{ Params: { id: string }; Body: { gemeenten: string[] | null; reden: string } }>(
+    "/api/accounts/:id/gemeenten",
+    { schema: { params: { type: "object", properties: { id: UUID } }, body: { type: "object", required: ["gemeenten", "reden"], additionalProperties: false, properties: { gemeenten: BEREIK, reden: REDEN } } } },
+    async (req) => {
+      vereis(req, "accounts.manage");
+      const p = req.persoon!;
+      const a = await laadDoel(d.pool, req.params.id);
+      weigerAls(magBeheren(p, a));
+      toetsBereik(p, req.body.gemeenten);
+      await d.pool.query("UPDATE accounts SET gemeenten = $2 WHERE id = $1", [a.id, req.body.gemeenten]);
+      await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "account.gemeenten", doel: a.id, ip: req.ip, resultaat: "ok", details: { oud: a.bereik ?? "alle", nieuw: req.body.gemeenten ?? "alle", reden: req.body.reden } });
+      return {};
+    },
+  );
+
   /** Status wijzigen, nu of later. Blokkeren of deactiveren beëindigt alle sessies. */
   app.post<{ Params: { id: string }; Body: { status: "actief" | "geblokkeerd" | "gedeactiveerd"; reden: string; ingang?: string } }>(
     "/api/accounts/:id/status",
@@ -164,13 +196,15 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
     const p = req.persoon!;
     const r = await d.pool.query(
       `SELECT w.id, w.status, w.reden, w.ingang, w.aangemaakt, b.naam AS door,
-              a.id AS account, a.naam, a.email, a.hoofdaccount,
+              a.id AS account, a.naam, a.email, a.hoofdaccount, a.gemeenten AS bereik,
               (SELECT coalesce(max(g.niveau), 0)::int FROM lidmaatschappen l JOIN groepen g ON g.id = l.groep WHERE l.account = a.id) AS niveau
          FROM statuswijzigingen w JOIN accounts a ON a.id = w.account JOIN accounts b ON b.id = w.door
         WHERE w.uitgevoerd IS NULL AND w.geannuleerd IS NULL
         ORDER BY w.ingang`,
     );
-    return r.rows.map(({ hoofdaccount, niveau, ...w }) => ({ ...w, beheerbaar: p.rechten.has("accounts.manage") && magBeheren(p, { id: w.account, hoofdaccount, niveau }) === null }));
+    return r.rows
+      .filter((w) => zichtbaar(p, { id: w.account, bereik: w.bereik }))
+      .map(({ hoofdaccount, niveau, bereik, ...w }) => ({ ...w, beheerbaar: p.rechten.has("accounts.manage") && magBeheren(p, { id: w.account, hoofdaccount, niveau, bereik }) === null }));
   });
 
   /** Een geplande statuswijziging annuleren; de rij blijft, met wie en waarom. */
@@ -204,18 +238,20 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
     if (p.niveau < 3) throw new AppFout(403, "niveau", "Dit overzicht is er vanaf niveau 3.");
     const r = await d.pool.query(
       `SELECT s.id, s.apparaat, s.ip, s.aangemaakt, s.laatst_actief, s.hard_einde, s.nood,
-              a.id AS account, a.naam, a.email, a.hoofdaccount,
+              a.id AS account, a.naam, a.email, a.hoofdaccount, a.gemeenten AS bereik,
               (SELECT coalesce(max(g.niveau), 0)::int FROM lidmaatschappen l JOIN groepen g ON g.id = l.groep WHERE l.account = a.id) AS niveau
          FROM sessies s JOIN accounts a ON a.id = s.account
         WHERE s.beeindigd IS NULL AND s.hard_einde > $1
         ORDER BY s.laatst_actief DESC`,
       [d.nu()],
     );
-    return r.rows.map(({ hoofdaccount, niveau, ...s }) => ({
-      ...s,
-      eigen: s.account === p.id,
-      beheerbaar: p.rechten.has("accounts.manage") && magBeheren(p, { id: s.account, hoofdaccount, niveau }) === null,
-    }));
+    return r.rows
+      .filter((s) => zichtbaar(p, { id: s.account, bereik: s.bereik }))
+      .map(({ hoofdaccount, niveau, bereik, ...s }) => ({
+        ...s,
+        eigen: s.account === p.id,
+        beheerbaar: p.rechten.has("accounts.manage") && magBeheren(p, { id: s.account, hoofdaccount, niveau, bereik }) === null,
+      }));
   });
 
   /** Eén sessie van iemand anders beëindigen (een verloren of gedeelde laptop). */

@@ -676,3 +676,6 @@ a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rg
 .cl-koppeling-regel { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center; font-size: 13px; }
 @media (max-width: 640px) { .cl-koppeling-regel { grid-template-columns: 1fr; } .cl-koppeling-regel > span[aria-hidden] { display: none; } .cl-st.aan .cl-attribuut-st { margin-left: 0; } }
 .cl-pv-voorstel { font-style: italic; }
+
+/* Kop: de gemeente die je beheert (GR: keuzelijst). */
+.ab-gemeente select { min-inline-size: 12rem; }

@@ -3,10 +3,11 @@ import {
   Checkbox, FormField, FormLabel, Heading1, Heading2, Paragraph, PrimaryActionButton, SecondaryActionButton, Select, SelectOption,
   StatusBadge, Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow, Textbox,
 } from "@utrecht/component-library-react";
-import { api, type Ik } from "../api";
+import { api, type Gemeenten, type Ik } from "../api";
 import { t, tijd } from "../i18n";
 import { ga, L } from "../App";
 import { Avatar, foutTekst, MeldingVak, RedenVeld, relatief, useLaden, type Melding } from "./gedeeld";
+import { BereikKeuze, bereikTekst } from "./Gemeente";
 
 interface AccountRij { id: string; email: string; naam: string; status: string; hoofdaccount: boolean; niveau: number; groepen: string[]; laatst_actief: string | null; gepland: number; beheerbaar: boolean; aangemaakt: string }
 interface GroepRij { id: string; naam: string; niveau: number; toewijsbaar: boolean }
@@ -136,11 +137,15 @@ function GroepKeuze({ geselecteerd, zet }: { geselecteerd: string[]; zet: (g: st
 /** Een account toevoegen: een eigen pagina, alleen voor wie accounts beheert. */
 export function NieuwAccount() {
   const [v, zet] = useState({ email: "", naam: "", taal: "nl" as "nl" | "en", groepen: [] as string[], reden: "" });
+  // Zonder keuze krijgt het account de gemeente die je nu beheert.
+  const [bereik, zetBereik] = useState<string[] | null | undefined>(undefined);
+  const g = useLaden(() => api<Gemeenten>("GET", "/api/gemeenten"));
+  const huidigBereik = bereik !== undefined ? bereik : g.data?.actief ? [g.data.actief.id] : null;
   const [m, zetM] = useState<Melding>(null);
   const verstuur = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      const { id } = await api<{ id: string }>("POST", "/api/accounts", v);
+      const { id } = await api<{ id: string }>("POST", "/api/accounts", { ...v, ...(bereik !== undefined ? { gemeenten: bereik } : {}) });
       ga(`/accounts/${id}?nieuw=1`);
     } catch (x) {
       zetM({ soort: "fout", tekst: foutTekst(x) });
@@ -168,6 +173,7 @@ export function NieuwAccount() {
           </Select>
         </FormField>
         <GroepKeuze geselecteerd={v.groepen} zet={(groepen) => zet({ ...v, groepen })} />
+        <BereikKeuze waarde={huidigBereik} zet={zetBereik} />
         <RedenVeld id="n-reden" waarde={v.reden} zet={(reden) => zet({ ...v, reden })} />
         <div className="ab-knoppen">
           <PrimaryActionButton type="submit">{t("accountNieuw")}</PrimaryActionButton>
@@ -311,6 +317,7 @@ export function Sessies() {
 
 interface AccountDetailData {
   id: string; email: string; naam: string; status: string; hoofdaccount: boolean; niveau: number; taal?: "nl" | "en"; beheerbaar: boolean; laatst_actief: string | null;
+  bereik: string[] | null;
   groepen: { id: string; naam: string; niveau: number }[];
   actieveSessies: number;
   wijzigingen: { id: string; status: string; reden: string; ingang: string; uitgevoerd: string | null; door: string; geannuleerd: string | null; reden_annulering: string | null; geannuleerd_door: string | null }[];
@@ -324,6 +331,9 @@ export function AccountDetail({ ik, id }: { ik: Ik; id: string }) {
   const [groepReden, zetGroepReden] = useState("");
   const [gegevens, zetGegevens] = useState<{ naam: string; taal: "nl" | "en" } | null>(null);
   const [uitReden, zetUitReden] = useState("");
+  const [bereik, zetBereik] = useState<string[] | null | undefined>(undefined);
+  const [bereikReden, zetBereikReden] = useState("");
+  const gem = useLaden(() => api<Gemeenten>("GET", "/api/gemeenten"));
   const kan = ik.rechten.includes("accounts.manage") && a.data?.beheerbaar;
 
   const doe = async (f: () => Promise<unknown>, daarna?: () => void) => {
@@ -355,6 +365,7 @@ export function AccountDetail({ ik, id }: { ik: Ik; id: string }) {
             <Status s={d.status} />
             <span className="ab-recht">{t("niveau")} {d.niveau || "—"}</span>
             {d.groepen.map((g) => <span key={g.id} className="ab-recht beheren">{g.naam}</span>)}
+            {gem.data && gem.data.inrichting.length > 1 && <span className="ab-recht">{bereikTekst(d.bereik, gem.data.inrichting)}</span>}
           </span>
         </div>
         <dl className="ab-feiten ab-profielkop-feiten">
@@ -374,6 +385,14 @@ export function AccountDetail({ ik, id }: { ik: Ik; id: string }) {
               <RedenVeld id="g-reden" waarde={groepReden} zet={zetGroepReden} />
               <div><PrimaryActionButton type="submit">{t("opslaan")}</PrimaryActionButton></div>
             </form>
+            {gem.data && gem.data.inrichting.length > 1 && (
+              <form className="ab-kaart ab-blok" onSubmit={(e) => { e.preventDefault(); doe(() => api("PUT", `/api/accounts/${id}/gemeenten`, { gemeenten: bereik !== undefined ? bereik : d.bereik, reden: bereikReden }), () => { zetBereik(undefined); zetBereikReden(""); }); }}>
+                <Heading2>{t("gemeenten")}</Heading2>
+                <BereikKeuze waarde={bereik !== undefined ? bereik : d.bereik} zet={zetBereik} />
+                <RedenVeld id="b-reden" waarde={bereikReden} zet={zetBereikReden} />
+                <div><PrimaryActionButton type="submit">{t("opslaan")}</PrimaryActionButton></div>
+              </form>
+            )}
             <form className="ab-kaart ab-blok" onSubmit={(e) => { e.preventDefault(); doe(() => api("PUT", `/api/accounts/${id}`, gg), () => zetGegevens(null)); }}>
               <Heading2>{t("gegevensWijzigen")}</Heading2>
               <div className="ab-velden-twee">
