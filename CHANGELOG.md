@@ -1,5 +1,10 @@
 # Wijzigingen
 
+## 0.18.1 — 2026-11-25
+
+- **Accounts per gemeente.** Heeft de inrichting meer gemeenten, dan toont de lijst een kolom *Gemeente* ("Alle", of de gemeenten van het account). Wie meer gemeenten beheert, ziet standaard de accounts van de gemeente die hij bovenaan koos, plus de accounts voor alle gemeenten; met de keuzelijst of *Alle accounts tonen* ziet hij de hele lijst.
+- **Bij één gemeente** is het label van de gemeente in de kop voor wie gemeenten mag beheren een link naar de pagina *Gemeenten*: voeg daar een gemeente toe, dan wordt het label een keuzelijst om te wisselen.
+
 ## 0.18.0 — 2026-11-23
 
 **Gemeenten beheren in het portaal.** Ontwerp: `oa-uitrol/docs/multi-tenant.md`.

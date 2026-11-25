@@ -682,3 +682,7 @@ a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rg
 
 /* Gemeenten: waarschuwing over Keycloak. */
 .ab-waarschuwing { padding: 8px 12px; border-left: 4px solid var(--ab-oranje); background: var(--ab-oranje-licht); border-radius: 4px; }
+
+/* Kop: het label van de gemeente als link naar Gemeenten (bij één gemeente). */
+.ab-pil-link { text-decoration: none; }
+.ab-pil-link:hover, .ab-pil-link:focus-visible { text-decoration: underline; text-underline-offset: 2px; }

@@ -9,7 +9,7 @@ import { ga, L } from "../App";
 import { Avatar, foutTekst, MeldingVak, RedenVeld, relatief, useLaden, type Melding } from "./gedeeld";
 import { BereikKeuze, bereikTekst } from "./Gemeente";
 
-interface AccountRij { id: string; email: string; naam: string; status: string; hoofdaccount: boolean; niveau: number; groepen: string[]; laatst_actief: string | null; gepland: number; beheerbaar: boolean; aangemaakt: string }
+interface AccountRij { id: string; email: string; naam: string; status: string; hoofdaccount: boolean; bereik: string[] | null; niveau: number; groepen: string[]; laatst_actief: string | null; gepland: number; beheerbaar: boolean; aangemaakt: string }
 interface GroepRij { id: string; naam: string; niveau: number; toewijsbaar: boolean }
 
 const STATUSKLEUR: Record<string, "safe" | "warning" | "danger"> = { actief: "safe", geblokkeerd: "danger", gedeactiveerd: "warning" };
@@ -21,14 +21,21 @@ function Status({ s }: { s: string }) {
 /** De lijst: zoeken en filteren gebeurt in de browser; de lijst is klein (tientallen tot honderden). */
 export function Accounts({ ik }: { ik: Ik }) {
   const lijst = useLaden(() => api<AccountRij[]>("GET", "/api/accounts"));
+  const gem = useLaden(() => api<Gemeenten>("GET", "/api/gemeenten"));
   const q = new URLSearchParams(location.search);
+  // Meer gemeenten in de inrichting: een kolom Gemeente, en wie er meer beheert, ziet
+  // standaard de accounts van de gekozen gemeente (plus die voor alle gemeenten).
+  const namen = gem.data?.inrichting ?? [];
+  const meer = namen.length > 1;
+  const [gemeente, zetGemeente] = useState(q.get("gemeente") ?? (ik.gemeenten > 1 && ik.gemeente ? ik.gemeente.id : ""));
   const [zoek, zetZoek] = useState("");
   const [status, zetStatus] = useState(q.get("status") ?? "");
   const [groep, zetGroep] = useState(q.get("groep") ?? "");
   const nooit = q.get("nooit") === "1";
   const melding = q.get("nieuw") ? { soort: "ok" as const, tekst: t("accountAangemaakt") } : null;
 
-  const rijen = lijst.data ?? [];
+  const alle = lijst.data ?? [];
+  const rijen = meer && gemeente ? alle.filter((a) => a.bereik === null || a.bereik.includes(gemeente)) : alle;
   const groepen = useMemo(() => [...new Set(rijen.flatMap((a) => a.groepen))].sort(), [rijen]);
   const tel = (s: string) => rijen.filter((a) => !a.hoofdaccount && (s === "dicht" ? a.status !== "actief" : a.status === s)).length;
   const zichtbaar = rijen.filter((a) => {
@@ -66,6 +73,15 @@ export function Accounts({ ik }: { ik: Ik }) {
             </button>
           ))}
         </div>
+        {meer && ik.gemeenten > 1 && (
+          <div>
+            <label className="ab-verborgen" htmlFor="a-gemeente">{t("gemeente")}</label>
+            <Select id="a-gemeente" value={gemeente} onChange={(e) => zetGemeente(e.target.value)}>
+              {(gem.data?.keuze ?? []).map((g) => <SelectOption key={g.id} value={g.id}>{g.naam}</SelectOption>)}
+              <SelectOption value="">{t("alleAccountsGemeenten")}</SelectOption>
+            </Select>
+          </div>
+        )}
         <div>
           <label className="ab-verborgen" htmlFor="a-groep">{t("groepen")}</label>
           <Select id="a-groep" value={groep} onChange={(e) => zetGroep(e.target.value)}>
@@ -81,6 +97,7 @@ export function Accounts({ ik }: { ik: Ik }) {
             <TableRow>
               <TableHeaderCell>{t("naam")}</TableHeaderCell>
               <TableHeaderCell>{t("status")}</TableHeaderCell>
+              {meer && <TableHeaderCell>{t("gemeente")}</TableHeaderCell>}
               <TableHeaderCell>{t("niveau")}</TableHeaderCell>
               <TableHeaderCell>{t("groepen")}</TableHeaderCell>
               <TableHeaderCell>{t("laatstActief")}</TableHeaderCell>
@@ -99,6 +116,7 @@ export function Accounts({ ik }: { ik: Ik }) {
                   </span>
                 </TableCell>
                 <TableCell><Status s={a.status} />{a.gepland > 0 && <> <StatusBadge status="warning">{t("gepland")}</StatusBadge></>}</TableCell>
+                {meer && <TableCell><span className="ab-rechten">{a.bereik === null ? <span className="ab-recht">{t("alle")}</span> : a.bereik.map((g) => <span key={g} className="ab-recht">{bereikTekst([g], namen).replace(/^Gemeente /, "")}</span>)}</span></TableCell>}
                 <TableCell>{a.niveau || "—"}</TableCell>
                 <TableCell>{a.groepen.length ? <span className="ab-rechten">{a.groepen.map((g) => <span key={g} className="ab-recht">{g}</span>)}</span> : "—"}</TableCell>
                 <TableCell><span title={tijd(a.laatst_actief)}>{relatief(a.laatst_actief)}</span></TableCell>
@@ -108,7 +126,12 @@ export function Accounts({ ik }: { ik: Ik }) {
         </Table>
         {lijst.data && !zichtbaar.length && <Paragraph className="ab-leeg">{t("geenResultaten")}</Paragraph>}
       </div>
-      {lijst.data && <Paragraph className="ab-klein">{zichtbaar.length} {t("aantalVan")} {rijen.length}</Paragraph>}
+      {lijst.data && (
+        <Paragraph className="ab-klein">
+          {zichtbaar.length} {t("aantalVan")} {rijen.length}
+          {meer && gemeente && rijen.length < alle.length && <> · {t("accountsGemeenteUitleg")} {namen.find((g) => g.id === gemeente)?.naam ?? gemeente}. <button type="button" className="ab-linkknop" onClick={() => zetGemeente("")}>{t("toonAlleAccounts")} ({alle.length})</button></>}
+        </Paragraph>
+      )}
     </>
   );
 }

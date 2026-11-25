@@ -3,6 +3,7 @@ import { Checkbox, Select, SelectOption } from "@utrecht/component-library-react
 import { api, type Gemeenten, type Ik } from "../api";
 import { t } from "../i18n";
 import { useLaden } from "./gedeeld";
+import { L } from "../App";
 
 /**
  * In de kop: de gemeente die je beheert. Wie er meer mag beheren (GR), kiest
@@ -12,7 +13,13 @@ export function GemeenteKiezer({ ik }: { ik: Ik }) {
   const g = useLaden(() => api<Gemeenten>("GET", "/api/gemeenten"));
   const [bezig, zetBezig] = useState(false);
   if (!ik.gemeente) return null;
-  if (ik.gemeenten <= 1 || !g.data) return <span className="ab-pil" title={t("gemeente")}>{ik.gemeente.naam}</span>;
+  if (ik.gemeenten <= 1 || !g.data) {
+    // Eén gemeente: een label. Mag je gemeenten beheren, dan leidt het naar de pagina
+    // Gemeenten: daar voeg je er een toe, waarna hier een keuzelijst staat.
+    if (ik.grBreed && ik.rechten.includes("gemeenten.manage"))
+      return <span title={t("gemeenteToevoegenOmTeWisselen")}><L naar="/gemeenten" className="ab-pil ab-pil-link">{ik.gemeente.naam}</L></span>;
+    return <span className="ab-pil" title={t("gemeente")}>{ik.gemeente.naam}</span>;
+  }
   return (
     <span className="ab-gemeente">
       <label className="ab-verborgen" htmlFor="kop-gemeente">{t("gemeenteKiezen")}</label>
