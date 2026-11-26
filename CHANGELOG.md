@@ -1,5 +1,10 @@
 # Wijzigingen
 
+## 0.21.1 — 2026-11-26
+
+- Weigert Keycloak een handeling van het portaal, dan noemt de melding welke stap (bijvoorbeeld "het aanmaken van de gebruiker" of "het toekennen van rollen") en hoe je het nakijkt en herstelt: `sudo /opt/oa-uitrol/server/inlog.sh portaal` op VPS 3.
+- Medewerker toevoegen: lukt het toekennen van de rollen niet, dan haalt het portaal de net aangemaakte gebruiker weer weg, zodat opnieuw proberen kan (anders: "bestaat al"). Eerst wordt gecontroleerd of het portaal de rollen `medewerker` en `ppl-n` mag toekennen.
+
 ## 0.21.0 — 2026-11-26
 
 - **Uitnodiging opnieuw sturen** (pagina Accounts, bij een account dat nog niet heeft ingelogd; recht `accounts.manage`). Het portaal stuurt de uitnodiging opnieuw. Moet de persoon zijn inlogaccount in Keycloak nog instellen, dan stuurt Keycloak ook de mail om een wachtwoord te kiezen en de authenticator te koppelen. De melding zegt ook als er nog geen inlogaccount is (aanmaken op de pagina Medewerkers) of als het is uitgeschakeld. Hooguit één keer per vijf minuten per account; in de audit (`account.uitnodiging`).

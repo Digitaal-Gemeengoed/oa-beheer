@@ -59,6 +59,18 @@ interface Rol {
 const PPL = /^ppl-([123])$/;
 export const niveauVan = (rollen: string[]) => Math.max(0, ...rollen.map((r) => Number(PPL.exec(r)?.[1] ?? 0)));
 
+/** Wat het portaal probeerde, voor de foutmelding. */
+function stapVan(methode: string, pad: string): string {
+  if (pad.startsWith("/organizations")) return methode === "GET" ? "het lezen van de gemeenten" : "het beheren van de gemeenten";
+  if (/\/role-mappings\//.test(pad)) return methode === "GET" ? "het lezen van de rollen" : "het toekennen van rollen";
+  if (pad.endsWith("/logout")) return "het uitloggen van de medewerker";
+  if (pad.includes("/execute-actions-email")) return "het laten versturen van de mail";
+  if (pad.startsWith("/users") && methode === "POST") return "het aanmaken van de gebruiker";
+  if (pad.startsWith("/users") && methode === "PUT") return "het wijzigen van de gebruiker";
+  if (pad.startsWith("/users") && methode === "DELETE") return "het verwijderen van de half aangemaakte gebruiker";
+  return "deze handeling";
+}
+
 export class KeycloakBeheer {
   private token: { waarde: string; tot: number } | null = null;
   private readonly beheer: string;
@@ -108,7 +120,7 @@ export class KeycloakBeheer {
     if (!r) throw new AppFout(502, "keycloak-onbereikbaar", "Keycloak is nu niet bereikbaar.");
     if (r.status === 401 || r.status === 403) {
       this.token = null;
-      throw new AppFout(502, "keycloak-geen-recht", "Het portaal heeft daarvoor geen recht in Keycloak. Draai bijwerken.sh op VPS 3 (dat geeft het service-account van het portaal zijn rechten).");
+      throw new AppFout(502, "keycloak-geen-recht", `Keycloak weigert het portaal ${stapVan(methode, pad)}. Het portaal mist daarvoor een recht in Keycloak. Kijk op VPS 3 wat er ontbreekt en zet het opnieuw: sudo /opt/oa-uitrol/server/inlog.sh portaal`);
     }
     if (r.status === 404 && bijNiet !== undefined) return bijNiet;
     const org = pad.startsWith("/organizations");
@@ -181,7 +193,7 @@ export class KeycloakBeheer {
     if (weg.length) await this.vraag("DELETE", pad, weg);
     if (niveau > 0 && !huidig.some((r) => r.name === `ppl-${niveau}`)) {
       const rol = (await this.vraag<Rol[]>("GET", `${pad}/available`)).find((r) => r.name === `ppl-${niveau}`);
-      if (!rol) throw new AppFout(502, "keycloak-geen-rol", `Keycloak kent de rol ppl-${niveau} niet, of het portaal mag hem niet toekennen. Draai bijwerken.sh op VPS 3.`);
+      if (!rol) throw new AppFout(502, "keycloak-geen-rol", `Keycloak kent de rol ppl-${niveau} niet, of het portaal mag hem niet toekennen. Kijk op VPS 3 wat er ontbreekt en zet het opnieuw: sudo /opt/oa-uitrol/server/inlog.sh portaal`);
       await this.vraag("POST", pad, [{ id: rol.id, name: rol.name }]);
     }
   }
@@ -246,9 +258,19 @@ export class KeycloakBeheer {
     const g = (await this.vraag<Gebruiker[]>("GET", `/users?username=${encodeURIComponent(m.email)}&exact=true&briefRepresentation=false`))[0];
     if (!g) throw new AppFout(502, "keycloak-fout", "De medewerker is aangemaakt, maar Keycloak geeft hem niet terug.");
     const pad = `/users/${encodeURIComponent(g.id)}/role-mappings/realm`;
-    const kan = await this.vraag<Rol[]>("GET", `${pad}/available`);
-    const rollen = kan.filter((r) => r.name === "medewerker" || (m.niveau > 0 && r.name === `ppl-${m.niveau}`)).map(({ id, name }) => ({ id, name }));
-    if (rollen.length) await this.vraag("POST", pad, rollen);
+    try {
+      const kan = await this.vraag<Rol[]>("GET", `${pad}/available`);
+      const nodig = ["medewerker", ...(m.niveau > 0 ? [`ppl-${m.niveau}`] : [])];
+      const rollen = kan.filter((r) => nodig.includes(r.name)).map(({ id, name }) => ({ id, name }));
+      if (rollen.length < nodig.length) {
+        throw new AppFout(502, "keycloak-geen-rol", `Het portaal mag in Keycloak niet ${nodig.filter((n) => !rollen.some((r) => r.name === n)).join(" en ")} toekennen. Kijk op VPS 3 wat er ontbreekt en zet het opnieuw: sudo /opt/oa-uitrol/server/inlog.sh portaal`);
+      }
+      await this.vraag("POST", pad, rollen);
+    } catch (e) {
+      // Geen half aangemaakte gebruiker achterlaten: dan blijft opnieuw proberen mogelijk.
+      await this.vraag("DELETE", `/users/${encodeURIComponent(g.id)}`).catch(() => undefined);
+      throw e;
+    }
     const domein = m.email.split("@")[1]?.toLowerCase();
     const o = (await this.organisaties()).find((x) => x.alias === m.gemeente);
     if (o && domein && (o.domains ?? []).some((d) => d.name.toLowerCase() === domein)) {

@@ -32,6 +32,8 @@ const rollen: Record<string, string[]> = { [U(1)]: ["medewerker", "ppl-1"], [U(2
 const uitgelogd: string[] = [];
 const mails: [string, string[]][] = [];
 let mailserver = true;
+let magMedewerker = true;
+let magAanmaken = true;
 const portaalmails: { aan: string[]; onderwerp: string }[] = [];
 const nepKeycloak = (async (url: string | URL, init?: RequestInit) => {
   const u = new URL(String(url));
@@ -46,6 +48,7 @@ const nepKeycloak = (async (url: string | URL, init?: RequestInit) => {
   if (x) return json(200, gebruikers.filter((g) => g.org === x![1]));
   x = /^\/organizations\/([^/]+)\/members\/([^/]+)$/.exec(pad);
   if (x) return gebruikers.some((g) => g.org === x![1] && g.id === x![2]) ? json(200, {}) : json(404, {});
+  if (pad === "/users" && m === "POST" && !magAanmaken) return json(403, {});
   if (pad === "/users" && m === "POST") {
     const b = JSON.parse(String(init!.body));
     const id = U(gebruikers.length + 1);
@@ -65,12 +68,13 @@ const nepKeycloak = (async (url: string | URL, init?: RequestInit) => {
   x = /^\/users\/([^/]+)\/execute-actions-email$/.exec(pad);
   if (x) return mailserver ? (mails.push([x[1]!, JSON.parse(String(init!.body))]), json(204)) : json(500, {});
   x = /^\/users\/([^/]+)$/.exec(pad);
+  if (x && m === "DELETE") { gebruikers.splice(gebruikers.findIndex((y) => y.id === x![1]), 1); return json(204); }
   if (x && m === "PUT") { Object.assign(gebruikers.find((y) => y.id === x![1])!, JSON.parse(String(init!.body))); return json(204); }
   if (x) { const g = gebruikers.find((y) => y.id === x![1]); return g ? json(200, g) : json(404, {}); }
   x = /^\/users\/([^/]+)\/role-mappings\/realm(\/available)?$/.exec(pad);
   if (x) {
     const id = x[1]!;
-    if (x[2]) return json(200, naarRollen(["medewerker", "ppl-1", "ppl-2", "ppl-3"].filter((r) => !rollen[id]!.includes(r))));
+    if (x[2]) return json(200, naarRollen([...(magMedewerker ? ["medewerker"] : []), "ppl-1", "ppl-2", "ppl-3"].filter((r) => !rollen[id]!.includes(r))));
     if (m === "GET") return json(200, naarRollen(rollen[id]!));
     const lijst = JSON.parse(String(init!.body)) as { name: string }[];
     if (lijst.some((r) => !/^(ppl-[123]|medewerker)$/.test(r.name))) return json(403, {});
@@ -264,4 +268,23 @@ test("uitnodiging opnieuw: portaalmail, en de Keycloak-mail als het inlogaccount
   assert.equal((await vraag(cookie["kijk@haarlem.nl"]!, "POST", `/api/accounts/${joost}/uitnodiging`)).statusCode, 403);
   const a = await eigenaar.query("SELECT details FROM beheer.audit WHERE actie = 'account.uitnodiging' ORDER BY id");
   assert.deepEqual(a.rows.map((x) => x.details.keycloak), ["verstuurd", "al-ingesteld", "geen-inlogaccount"]);
+});
+
+test("zonder de rechten in Keycloak: een melding met de stap en het herstel, en geen half aangemaakte gebruiker", async () => {
+  const nieuw = (email: string) => vraag(cookie["ilse@haarlem.nl"]!, "POST", "/api/medewerkers", { email, voornaam: "Hubert-Jan", achternaam: "Hubeek", niveau: 2, reden: "Developer / Contributor" });
+  magAanmaken = false;
+  let j = (await nieuw("hhubeek@haarlem.nl")).json();
+  magAanmaken = true;
+  assert.equal(j.fout, "keycloak-geen-recht");
+  assert.match(j.melding, /het aanmaken van de gebruiker/);
+  assert.match(j.melding, /inlog\.sh portaal/);
+  // Wel aanmaken, maar de rol medewerker niet mogen toekennen (stand van 0.38): de gebruiker gaat weer weg.
+  magMedewerker = false;
+  j = (await nieuw("hhubeek@haarlem.nl")).json();
+  magMedewerker = true;
+  assert.equal(j.fout, "keycloak-geen-rol");
+  assert.match(j.melding, /medewerker/);
+  assert.equal(gebruikers.some((g) => g.username === "hhubeek@haarlem.nl"), false);
+  // Met de rechten: gewoon toegevoegd.
+  assert.equal((await nieuw("hhubeek@haarlem.nl")).statusCode, 200);
 });
