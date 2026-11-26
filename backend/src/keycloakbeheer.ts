@@ -205,6 +205,19 @@ export class KeycloakBeheer {
     };
   }
 
+  /**
+   * Het inlogaccount bij een e-mailadres (exact), met wat de gebruiker nog
+   * moet instellen; null als er geen is.
+   */
+  async inlogaccount(email: string): Promise<{ id: string; actief: boolean; openStappen: Herstel[] } | null> {
+    const e = encodeURIComponent(email);
+    const g = (await this.vraag<Gebruiker[]>("GET", `/users?email=${e}&exact=true&briefRepresentation=false`))[0]
+      ?? (await this.vraag<Gebruiker[]>("GET", `/users?username=${e}&exact=true&briefRepresentation=false`))[0];
+    if (!g) return null;
+    const open = (Object.keys(ACTIE) as Herstel[]).filter((w) => (g.requiredActions ?? []).includes(ACTIE[w]));
+    return { id: g.id, actief: g.enabled !== false, openStappen: open };
+  }
+
   /** Bestaat er al iemand met dit e-mailadres of deze gebruikersnaam (in welke gemeente ook)? */
   async bestaat(email: string): Promise<boolean> {
     const e = encodeURIComponent(email);

@@ -32,7 +32,18 @@ export function Accounts({ ik }: { ik: Ik }) {
   const [status, zetStatus] = useState(q.get("status") ?? "");
   const [groep, zetGroep] = useState(q.get("groep") ?? "");
   const nooit = q.get("nooit") === "1";
-  const melding = q.get("nieuw") ? { soort: "ok" as const, tekst: t("accountAangemaakt") } : null;
+  const [uitnodigingM, zetUitnodigingM] = useState<Melding>(null);
+  const melding = uitnodigingM ?? (q.get("nieuw") ? { soort: "ok" as const, tekst: t("accountAangemaakt") } : null);
+  const opnieuwUitnodigen = async (a: AccountRij) => {
+    try {
+      const r = await api<{ portaal: boolean; keycloak: string }>("POST", `/api/accounts/${a.id}/uitnodiging`);
+      const kc = t(`uitnodigingKeycloak_${r.keycloak}` as never);
+      zetUitnodigingM({ soort: r.portaal ? "ok" : "fout", tekst: `${(r.portaal ? t("uitnodigingVerstuurd") : t("uitnodigingNietVerstuurd")).replace("{wie}", a.email)} ${kc}` });
+    } catch (e) {
+      zetUitnodigingM({ soort: "fout", tekst: foutTekst(e) });
+    }
+    scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const alle = lijst.data ?? [];
   const rijen = meer && gemeente ? alle.filter((a) => a.bereik === null || a.bereik.includes(gemeente)) : alle;
@@ -117,7 +128,12 @@ export function Accounts({ ik }: { ik: Ik }) {
                 </TableCell>
                 <TableCell>
                   <Status s={a.status} />{a.gepland > 0 && <> <StatusBadge status="warning">{t("gepland")}</StatusBadge></>}
-                  {!a.gekoppeld && !a.hoofdaccount && a.status === "actief" && <> <span title={t("nogNietIngelogdUitleg")}><StatusBadge status="neutral">{t("nogNietIngelogd")}</StatusBadge></span></>}
+                  {!a.gekoppeld && !a.hoofdaccount && a.status === "actief" && (
+                    <>
+                      {" "}<span title={t("nogNietIngelogdUitleg")}><StatusBadge status="neutral">{t("nogNietIngelogd")}</StatusBadge></span>
+                      {a.beheerbaar && <div><button type="button" className="ab-linkknop ab-klein" onClick={() => void opnieuwUitnodigen(a)}>{t("opnieuwUitnodigen")}</button></div>}
+                    </>
+                  )}
                 </TableCell>
                 {meer && <TableCell><span className="ab-rechten">{a.bereik === null ? <span className="ab-recht">{t("alle")}</span> : a.bereik.map((g) => <span key={g} className="ab-recht">{bereikTekst([g], namen).replace(/^Gemeente /, "")}</span>)}</span></TableCell>}
                 <TableCell>{a.niveau || "—"}</TableCell>

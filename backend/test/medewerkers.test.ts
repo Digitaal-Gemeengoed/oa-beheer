@@ -32,6 +32,7 @@ const rollen: Record<string, string[]> = { [U(1)]: ["medewerker", "ppl-1"], [U(2
 const uitgelogd: string[] = [];
 const mails: [string, string[]][] = [];
 let mailserver = true;
+const portaalmails: { aan: string[]; onderwerp: string }[] = [];
 const nepKeycloak = (async (url: string | URL, init?: RequestInit) => {
   const u = new URL(String(url));
   const m = init?.method ?? "GET";
@@ -95,9 +96,10 @@ before(async () => {
   eigenaar = d.eigenaar;
   const config = testConfig("oa_beheer_mw", { GEMEENTEN: "haarlem:Gemeente Haarlem:haarlem.nl,zandvoort:Gemeente Zandvoort:zandvoort.nl" });
   keycloak = new KeycloakBeheer("https://id.test.nl/realms/gemeenten", "oa-beheer", "geheim", nepKeycloak);
-  app = await bouwApp({ config, pool, nu: () => klok, keycloak }, routes);
+  const mailer = { verstuur: async (b: { aan: string[]; onderwerp: string }) => void portaalmails.push(b) } as never;
+  app = await bouwApp({ config, pool, nu: () => klok, keycloak, mailer }, routes);
   const g = async (naam: string, rechten: string[]) => (await pool.query("INSERT INTO groepen (naam, rechten, niveau) VALUES ($1, $2, 3) RETURNING id", [naam, rechten])).rows[0].id;
-  const beheer = await g("Medewerkers", ["medewerkers.view", "medewerkers.manage"]);
+  const beheer = await g("Medewerkers", ["medewerkers.view", "medewerkers.manage", "accounts.view", "accounts.manage"]);
   const kijken = await g("Kijken", ["medewerkers.view"]);
   for (const [email, bereik, groep] of [["ilse@haarlem.nl", ["haarlem"], beheer], ["kijk@haarlem.nl", ["haarlem"], kijken], ["anne@zandvoort.nl", ["zandvoort"], beheer]] as const) {
     const id = (await pool.query("INSERT INTO accounts (email, naam, gemeenten) VALUES ($1, $1, $2) RETURNING id", [email, bereik])).rows[0].id;
@@ -235,4 +237,31 @@ test("uitschakelen: nu (met uitloggen), of op een datum; annuleren; weer inschak
   // Niet jezelf, niet een andere gemeente.
   assert.equal((await zet(U(4), { actief: false, reden: "Mijn eigen account" })).json().fout, "eigen-account");
   assert.equal((await zet(U(3), { actief: false, reden: "Andere gemeente" })).json().fout, "niet-gevonden");
+});
+
+test("uitnodiging opnieuw: portaalmail, en de Keycloak-mail als het inlogaccount nog moet worden ingesteld", async () => {
+  const account = async (email: string, sub: string | null = null) =>
+    (await pool.query("INSERT INTO accounts (email, naam, gemeenten, keycloak_sub) VALUES ($1, $1, '{haarlem}', $2) RETURNING id", [email, sub])).rows[0].id as string;
+  const uit = (id: string) => vraag(cookie["ilse@haarlem.nl"]!, "POST", `/api/accounts/${id}/uitnodiging`);
+  mails.splice(0);
+  portaalmails.splice(0);
+  // Joost is net toegevoegd en heeft zijn account nog niet ingesteld: beide mails.
+  const joost = await account("joost@haarlem.nl");
+  const r = await uit(joost);
+  assert.equal(r.statusCode, 200, r.body);
+  assert.deepEqual(r.json(), { portaal: true, keycloak: "verstuurd" });
+  assert.deepEqual(portaalmails.splice(0).map((m) => m.aan), [["joost@haarlem.nl"]]);
+  const jid = gebruikers.find((g) => g.username === "joost@haarlem.nl")!.id;
+  assert.deepEqual(mails.splice(0), [[jid, ["UPDATE_PASSWORD", "CONFIGURE_TOTP"]]]);
+  // Meteen nog een keer: te snel.
+  assert.equal((await uit(joost)).json().fout, "te-snel");
+  // Femke heeft haar account al ingesteld: alleen de portaalmail. Iemand zonder inlogaccount: idem, met die melding.
+  assert.deepEqual((await uit(await account("femke@haarlem.nl"))).json(), { portaal: true, keycloak: "al-ingesteld" });
+  assert.deepEqual((await uit(await account("nog.niemand@haarlem.nl"))).json(), { portaal: true, keycloak: "geen-inlogaccount" });
+  assert.equal(mails.length, 0);
+  // Al ingelogd (gekoppeld): niet meer nodig. Zonder recht: niet.
+  assert.equal((await uit(await account("al@haarlem.nl", "sub-al"))).json().fout, "al-ingelogd");
+  assert.equal((await vraag(cookie["kijk@haarlem.nl"]!, "POST", `/api/accounts/${joost}/uitnodiging`)).statusCode, 403);
+  const a = await eigenaar.query("SELECT details FROM beheer.audit WHERE actie = 'account.uitnodiging' ORDER BY id");
+  assert.deepEqual(a.rows.map((x) => x.details.keycloak), ["verstuurd", "al-ingesteld", "geen-inlogaccount"]);
 });

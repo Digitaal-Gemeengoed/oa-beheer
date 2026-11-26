@@ -179,7 +179,7 @@ export function Medewerkers({ gemeenteNaam }: { gemeenteNaam: string }) {
         )}
         {b.soort === "herstel" && (
           <>
-            {kop(t("herstelmail"), b.m)}
+            {kop(b.m.wachtOpInstellen ? t("uitnodigingOpnieuw") : t("herstelmail"), b.m)}
             <Paragraph className="ab-klein">{t("herstelmailUitleg")}</Paragraph>
             <fieldset className="ab-vinkjes">
               <legend>{t("herstelWat")}</legend>
@@ -271,7 +271,7 @@ export function Medewerkers({ gemeenteNaam }: { gemeenteNaam: string }) {
                       <span className="ab-acties">
                         <SecondaryActionButton onClick={() => open({ soort: "niveau", m: x, niveau: x.niveau, reden: "" })}>{t("niveau")}</SecondaryActionButton>
                         {x.actief && x.email && (
-                          <SecondaryActionButton onClick={() => open({ soort: "herstel", m: x, wachtwoord: x.wachtOpInstellen, authenticator: true, reden: "" })}>{t("herstelmailKort")}</SecondaryActionButton>
+                          <SecondaryActionButton onClick={() => open({ soort: "herstel", m: x, wachtwoord: x.wachtOpInstellen, authenticator: true, reden: "" })}>{x.wachtOpInstellen ? t("uitnodigingOpnieuw") : t("herstelmailKort")}</SecondaryActionButton>
                         )}
                         <SecondaryActionButton onClick={() => open({ soort: "actief", m: x, ingang: "", reden: "" })}>{x.actief ? t("uitschakelen") : t("inschakelen")}</SecondaryActionButton>
                       </span>

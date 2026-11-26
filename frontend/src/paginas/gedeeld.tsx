@@ -65,6 +65,7 @@ const ACTIES: Record<string, [string, string]> = {
   "nood.mislukt": ["Noodtoegang mislukt", "Emergency access failed"],
   "nood.geblokkeerd": ["Noodtoegang geblokkeerd", "Emergency access blocked"],
   "account.aangemaakt": ["Account toegevoegd", "Account added"],
+  "account.uitnodiging": ["Uitnodiging opnieuw gestuurd", "Invitation resent"],
   "medewerker.aangemaakt": ["Medewerker toegevoegd", "Staff member added"],
   "medewerker.niveau": ["PPL-niveau gewijzigd", "PPL level changed"],
   "medewerker.uitgeschakeld": ["Medewerker uitgeschakeld", "Staff member disabled"],

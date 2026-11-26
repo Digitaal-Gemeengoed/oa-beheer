@@ -17,6 +17,12 @@ const BEREIK = { anyOf: [{ type: "null" }, { type: "array", minItems: 1, maxItem
 /** Een beheerder ziet zichzelf en de accounts binnen zijn bereik. */
 const zichtbaar = (p: { id: string; bereik: string[] | null }, a: { id: string; bereik?: string[] | null }) => a.id === p.id || binnenBereik(p.bereik, a.bereik);
 
+/** De uitnodiging voor het portaal; bij opnieuw sturen dezelfde tekst. */
+function uitnodiging(van: string, email: string, taal: string, herkomst: string) {
+  return taal === "en"
+    ? bericht([email], "You have access to the Office Assistant admin portal", [`${van} has given you access to ${herkomst}.`, "You sign in with your municipality account (Keycloak), the same as for the Office Assistant. If you have not set that up yet, you will receive a separate email from Keycloak to choose a password and link your authenticator app.", `Sign in: ${herkomst}/`])
+    : bericht([email], "Je hebt toegang tot het beheerportaal van de Office Assistent", [`${van} heeft je toegang gegeven tot ${herkomst}.`, "Je logt in met je account van de gemeente (Keycloak), hetzelfde als voor de Office Assistent. Heb je dat nog niet ingesteld, dan krijg je van Keycloak een aparte mail om een wachtwoord te kiezen en je authenticator-app te koppelen.", `Inloggen: ${herkomst}/`]);
+}
 export async function accountRoutes(app: FastifyInstance): Promise<void> {
   const d = app.diensten;
 
@@ -94,10 +100,7 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
         await schrijfAudit(c, { account: p.id, email: p.email, actie: "account.aangemaakt", doel: nieuw, ip: req.ip, resultaat: "ok", details: { email, naam: req.body.naam, groepen: groepen.map((g) => g.naam), gemeenten: bereik ?? "alle", reden: req.body.reden } });
         return nieuw;
       });
-      const b = req.body.taal === "nl"
-        ? bericht([email], "Je hebt toegang tot het beheerportaal van de Office Assistent", [`${p.naam} heeft je toegang gegeven tot ${d.config.herkomst}.`, "Je logt in met je account van de gemeente (Keycloak). Heb je daar nog geen tweestapsverificatie, dan stel je die bij de eerste aanmelding in.", `Inloggen: ${d.config.herkomst}/`])
-        : bericht([email], "You have access to the Office Assistant admin portal", [`${p.naam} has given you access to ${d.config.herkomst}.`, "You sign in with your municipality account (Keycloak). If you do not have two-factor authentication yet, you set it up at your first sign-in.", `Sign in: ${d.config.herkomst}/`]);
-      await d.mailer.verstuur(b).catch((e) => req.log.error({ fout: (e as Error).message }, "uitnodiging niet verstuurd"));
+      await d.mailer.verstuur(uitnodiging(p.naam, email, req.body.taal, d.config.herkomst)).catch((e) => req.log.error({ fout: (e as Error).message }, "uitnodiging niet verstuurd"));
       return antwoord.code(201).send({ id });
     },
   );
@@ -172,6 +175,41 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
       await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "account.status.gepland", doel: a.id, ip: req.ip, resultaat: "ok", details: { status: req.body.status, reden: req.body.reden, ingang: (ingang < nu ? nu : ingang).toISOString() } });
       await voerStatuswijzigingenUit(d.pool, nu);
       return {};
+    },
+  );
+
+  /**
+   * De uitnodiging opnieuw sturen, voor een account dat nog nooit heeft
+   * ingelogd. Moet de persoon zijn inlogaccount in Keycloak nog instellen
+   * (wachtwoord, authenticator), dan stuurt Keycloak ook die mail opnieuw.
+   * Hooguit één keer per vijf minuten per account.
+   */
+  app.post<{ Params: { id: string } }>(
+    "/api/accounts/:id/uitnodiging",
+    { schema: { params: { type: "object", properties: { id: UUID } } } },
+    async (req) => {
+      vereis(req, "accounts.manage");
+      const p = req.persoon!;
+      const a = await laadDoel(d.pool, req.params.id);
+      weigerAls(magBeheren(p, a));
+      const x = (await d.pool.query("SELECT keycloak_sub, taal FROM accounts WHERE id = $1", [a.id])).rows[0];
+      if (x.keycloak_sub) throw new AppFout(409, "al-ingelogd", "Dit account heeft al ingelogd; een uitnodiging is niet meer nodig.");
+      if (a.status !== "actief") throw new AppFout(409, "niet-actief", "Dit account is niet actief.");
+      const recent = await d.pool.query("SELECT 1 FROM audit WHERE actie = 'account.uitnodiging' AND doel = $1 AND tijd > now() - interval '5 minutes' LIMIT 1", [a.id]);
+      if (recent.rowCount) throw new AppFout(429, "te-snel", "De uitnodiging is net verstuurd. Probeer het over een paar minuten opnieuw.");
+
+      let keycloak: "verstuurd" | "al-ingesteld" | "geen-inlogaccount" | "uitgeschakeld" | "mislukt" | "niet-verbonden" = "niet-verbonden";
+      if (d.keycloak) {
+        const k = await d.keycloak.inlogaccount(a.email).catch(() => undefined);
+        if (k === undefined) keycloak = "mislukt";
+        else if (!k) keycloak = "geen-inlogaccount";
+        else if (!k.actief) keycloak = "uitgeschakeld";
+        else if (!k.openStappen.length) keycloak = "al-ingesteld";
+        else keycloak = await d.keycloak.stuurHerstelmail(k.id, k.openStappen).then(() => "verstuurd" as const, () => "mislukt" as const);
+      }
+      const portaal = await d.mailer.verstuur(uitnodiging(p.naam, a.email, x.taal, d.config.herkomst)).then(() => true, (e) => (req.log.error({ fout: (e as Error).message }, "uitnodiging niet verstuurd"), false));
+      await schrijfAudit(d.pool, { account: p.id, email: p.email, actie: "account.uitnodiging", doel: a.id, ip: req.ip, resultaat: portaal ? "ok" : "mail-mislukt", details: { email: a.email, keycloak } });
+      return { portaal, keycloak };
     },
   );
 

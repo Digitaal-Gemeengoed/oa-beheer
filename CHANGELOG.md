@@ -1,5 +1,11 @@
 # Wijzigingen
 
+## 0.21.0 — 2026-11-26
+
+- **Uitnodiging opnieuw sturen** (pagina Accounts, bij een account dat nog niet heeft ingelogd; recht `accounts.manage`). Het portaal stuurt de uitnodiging opnieuw. Moet de persoon zijn inlogaccount in Keycloak nog instellen, dan stuurt Keycloak ook de mail om een wachtwoord te kiezen en de authenticator te koppelen. De melding zegt ook als er nog geen inlogaccount is (aanmaken op de pagina Medewerkers) of als het is uitgeschakeld. Hooguit één keer per vijf minuten per account; in de audit (`account.uitnodiging`).
+- De tekst van de uitnodiging legt uit dat inloggen gaat met het inlogaccount van de gemeente, en dat wie dat nog niet heeft ingesteld een aparte mail van Keycloak krijgt.
+- **Medewerkers**: bij een medewerker die zijn account nog niet heeft ingesteld heet de knop *Uitnodiging opnieuw*.
+
 ## 0.20.0 — 2026-11-26
 
 - **Medewerkers beheren** (pagina Medewerkers, recht `medewerkers.manage`), zolang er geen koppeling is met EntraID of een ander IAM-pakket:
