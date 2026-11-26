@@ -7,7 +7,7 @@ import { api, type Ik } from "../api";
 import { t } from "../i18n";
 import { foutTekst, MeldingVak, RedenVeld, useLaden, type Melding } from "./gedeeld";
 
-const RECHTEN = ["accounts.view", "accounts.manage", "groups.view", "groups.manage", "audit.view", "settings.view", "settings.manage", "metadata.view", "metadata.manage", "anonimiseren.view", "classificatie.view", "classificatie.manage", "bewaartermijn.afwijken", "gemeenten.manage"];
+const RECHTEN = ["accounts.view", "accounts.manage", "groups.view", "groups.manage", "audit.view", "settings.view", "settings.manage", "metadata.view", "metadata.manage", "anonimiseren.view", "classificatie.view", "classificatie.manage", "bewaartermijn.afwijken", "gemeenten.manage", "medewerkers.view", "medewerkers.manage"];
 
 /** Leesbare naam van een recht: onderdeel en wat je mag. */
 function rechtNaam(r: string): string {

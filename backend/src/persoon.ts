@@ -2,11 +2,11 @@ import type pg from "pg";
 import { schrijfAudit } from "./audit.js";
 import type { Db } from "./db.js";
 
-export const RECHTEN = ["accounts.view", "accounts.manage", "groups.view", "groups.manage", "audit.view", "settings.view", "settings.manage", "metadata.view", "metadata.manage", "anonimiseren.view", "classificatie.view", "classificatie.manage", "bewaartermijn.afwijken", "gemeenten.manage"] as const;
+export const RECHTEN = ["accounts.view", "accounts.manage", "groups.view", "groups.manage", "audit.view", "settings.view", "settings.manage", "metadata.view", "metadata.manage", "anonimiseren.view", "classificatie.view", "classificatie.manage", "bewaartermijn.afwijken", "gemeenten.manage", "medewerkers.view", "medewerkers.manage"] as const;
 export type Recht = (typeof RECHTEN)[number];
 
 /** Rechten die alleen doorgeeft wie ze zelf heeft. */
-export const GEVOELIG: Recht[] = ["accounts.view", "accounts.manage", "groups.view", "groups.manage", "audit.view", "gemeenten.manage"];
+export const GEVOELIG: Recht[] = ["accounts.view", "accounts.manage", "groups.view", "groups.manage", "audit.view", "gemeenten.manage", "medewerkers.view", "medewerkers.manage"];
 
 export interface Persoon {
   id: string;

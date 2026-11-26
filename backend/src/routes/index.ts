@@ -11,6 +11,7 @@ import { metadatamodelRoutes } from "./metadatamodel.js";
 import { anonimiserenRoutes } from "./anonimiseren.js";
 import { classificatieRoutes } from "./classificatie.js";
 import { gemeenteRoutes } from "./gemeenten.js";
+import { medewerkerRoutes } from "./medewerkers.js";
 
 /** Alle routes, in volgorde; de toegangscontrole eerst. */
-export const routes: ((app: FastifyInstance) => Promise<void>)[] = [toegang, authRoutes, noodRoutes, accountRoutes, groepRoutes, profielRoutes, auditRoutes, instellingRoutes, metadatamodelRoutes, anonimiserenRoutes, classificatieRoutes, gemeenteRoutes];
+export const routes: ((app: FastifyInstance) => Promise<void>)[] = [toegang, authRoutes, noodRoutes, accountRoutes, groepRoutes, profielRoutes, auditRoutes, instellingRoutes, metadatamodelRoutes, anonimiserenRoutes, classificatieRoutes, gemeenteRoutes, medewerkerRoutes];

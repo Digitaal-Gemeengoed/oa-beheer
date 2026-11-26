@@ -15,6 +15,7 @@ import { Classificatie } from "./paginas/Classificatie";
 import { initialen } from "./paginas/gedeeld";
 import { GemeenteKiezer } from "./paginas/Gemeente";
 import { Gemeenten } from "./paginas/Gemeenten";
+import { Medewerkers } from "./paginas/Medewerkers";
 
 /** Eenvoudige router op de History-API. */
 export function ga(pad: string): void {
@@ -84,6 +85,7 @@ export function App() {
   else if (pad === "/accounts/sessies" && r.has("accounts.view") && ik.niveau >= 3) inhoud = <Sessies />;
   else if (/^\/accounts\/[0-9a-f-]{36}$/i.test(pad) && r.has("accounts.view")) inhoud = <AccountDetail ik={ik} id={pad.split("/")[2]!} />;
   else if (pad === "/groepen") inhoud = <Groepen ik={ik} />;
+  else if (pad === "/medewerkers" && r.has("medewerkers.view")) inhoud = <Medewerkers gemeenteNaam={ik.gemeente?.naam ?? ""} />;
   else if (pad === "/gemeenten" && r.has("gemeenten.manage") && ik.grBreed) inhoud = <Gemeenten />;
   else if (pad === "/audit" && r.has("audit.view")) inhoud = <Audit />;
   else if (pad === "/instellingen" && (r.has("settings.view") || r.has("settings.manage"))) inhoud = <Instellingen ik={ik} />;
@@ -129,6 +131,7 @@ export function App() {
                 </li>
               )}
               {(r.has("groups.view") || r.has("groups.manage") || r.has("accounts.manage")) && <li><L naar="/groepen">{t("groepen")}</L></li>}
+              {r.has("medewerkers.view") && <li><L naar="/medewerkers">{t("medewerkers")}</L></li>}
             </ul>
             {(r.has("metadata.view") || r.has("metadata.manage") || r.has("classificatie.view") || r.has("classificatie.manage") || r.has("anonimiseren.view")) && (
               <>

@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## 0.19.0 — 2026-11-26
+
+- **Medewerkers**: nieuwe pagina met de medewerkers van de gemeente die je beheert (leden van de gemeente in Keycloak, of met het attribuut `gemeente`), hun rollen en hun niveau voor persoonsgegevens (PPL 0 tot 3), met zoeken op naam of e-mail.
+  - Het niveau wijzigen kan met het nieuwe recht `medewerkers.manage` (bekijken: `medewerkers.view`; beide gevoelig), met een reden. Alleen voor medewerkers van de gemeente die je nu beheert, en niet voor jezelf. Elke wijziging staat in de audit (`medewerker.niveau`, met oud en nieuw niveau).
+  - Het niveau is de Keycloak-rol `ppl-1`, `ppl-2` of `ppl-3` (zonder rol: PPL 0). Het service-account van het portaal mag in Keycloak alleen die drie rollen toekennen en weghalen (fijnmazige beheerrechten; oa-uitrol 0.38.0). Andere rollen, gebruikersgegevens en sessies blijven buiten bereik.
+  - Het nieuwe niveau geldt vanaf de volgende keer dat de medewerker inlogt bij de Office Assistent.
+- Migratie 008: de rechten `medewerkers.view` en `medewerkers.manage`.
+
 ## 0.18.1 — 2026-11-25
 
 - **Accounts per gemeente.** Heeft de inrichting meer gemeenten, dan toont de lijst een kolom *Gemeente* ("Alle", of de gemeenten van het account). Wie meer gemeenten beheert, ziet standaard de accounts van de gemeente die hij bovenaan koos, plus de accounts voor alle gemeenten; met de keuzelijst of *Alle accounts tonen* ziet hij de hele lijst.
