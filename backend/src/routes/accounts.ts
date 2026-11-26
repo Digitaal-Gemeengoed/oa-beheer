@@ -29,7 +29,7 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/accounts", async (req) => {
     vereis(req, "accounts.view");
     const r = await d.pool.query(
-      `SELECT a.id, a.email, a.naam, a.taal, a.status, a.hoofdaccount, a.aangemaakt, a.gemeenten AS bereik,
+      `SELECT a.id, a.email, a.naam, a.taal, a.status, a.hoofdaccount, a.aangemaakt, a.gemeenten AS bereik, a.keycloak_sub IS NOT NULL AS gekoppeld,
               coalesce(max(g.niveau), 0)::int AS niveau,
               coalesce(array_agg(g.naam ORDER BY g.naam) FILTER (WHERE g.id IS NOT NULL), '{}') AS groepen,
               (SELECT max(laatst_actief) FROM sessies s WHERE s.account = a.id) AS laatst_actief,

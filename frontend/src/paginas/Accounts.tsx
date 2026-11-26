@@ -9,7 +9,7 @@ import { ga, L } from "../App";
 import { Avatar, foutTekst, MeldingVak, RedenVeld, relatief, useLaden, type Melding } from "./gedeeld";
 import { BereikKeuze, bereikTekst } from "./Gemeente";
 
-interface AccountRij { id: string; email: string; naam: string; status: string; hoofdaccount: boolean; bereik: string[] | null; niveau: number; groepen: string[]; laatst_actief: string | null; gepland: number; beheerbaar: boolean; aangemaakt: string }
+interface AccountRij { id: string; email: string; naam: string; status: string; hoofdaccount: boolean; bereik: string[] | null; niveau: number; groepen: string[]; laatst_actief: string | null; gepland: number; beheerbaar: boolean; aangemaakt: string; gekoppeld: boolean }
 interface GroepRij { id: string; naam: string; niveau: number; toewijsbaar: boolean }
 
 const STATUSKLEUR: Record<string, "safe" | "warning" | "danger"> = { actief: "safe", geblokkeerd: "danger", gedeactiveerd: "warning" };
@@ -115,7 +115,10 @@ export function Accounts({ ik }: { ik: Ik }) {
                     </span>
                   </span>
                 </TableCell>
-                <TableCell><Status s={a.status} />{a.gepland > 0 && <> <StatusBadge status="warning">{t("gepland")}</StatusBadge></>}</TableCell>
+                <TableCell>
+                  <Status s={a.status} />{a.gepland > 0 && <> <StatusBadge status="warning">{t("gepland")}</StatusBadge></>}
+                  {!a.gekoppeld && !a.hoofdaccount && a.status === "actief" && <> <span title={t("nogNietIngelogdUitleg")}><StatusBadge status="neutral">{t("nogNietIngelogd")}</StatusBadge></span></>}
+                </TableCell>
                 {meer && <TableCell><span className="ab-rechten">{a.bereik === null ? <span className="ab-recht">{t("alle")}</span> : a.bereik.map((g) => <span key={g} className="ab-recht">{bereikTekst([g], namen).replace(/^Gemeente /, "")}</span>)}</span></TableCell>}
                 <TableCell>{a.niveau || "—"}</TableCell>
                 <TableCell>{a.groepen.length ? <span className="ab-rechten">{a.groepen.map((g) => <span key={g} className="ab-recht">{g}</span>)}</span> : "—"}</TableCell>

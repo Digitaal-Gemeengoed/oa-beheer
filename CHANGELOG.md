@@ -1,5 +1,18 @@
 # Wijzigingen
 
+## 0.20.0 — 2026-11-26
+
+- **Medewerkers beheren** (pagina Medewerkers, recht `medewerkers.manage`), zolang er geen koppeling is met EntraID of een ander IAM-pakket:
+  - **Toevoegen**: e-mail, naam en PPL-niveau. Keycloak maakt het inlogaccount (gebruikersnaam is het e-mailadres, attribuut `gemeente`, rol `medewerker`, lid van de gemeente als het e-maildomein daarbij hoort) en mailt een link (drie dagen geldig) om een wachtwoord te kiezen en de authenticator te koppelen. Wachtwoorden lopen nooit via het portaal.
+  - **Uitschakelen en weer inschakelen**, nu of op een datum (bijvoorbeeld bij uit dienst); geplande wijzigingen staan bij de medewerker en zijn te annuleren. Uitschakelen beëindigt alle sessies.
+  - **Herstelmail**: Keycloak mailt een link om het wachtwoord en/of de authenticator opnieuw in te stellen.
+  - Een ander **niveau** logt de medewerker uit, zodat het nieuwe niveau bij de volgende keer inloggen geldt.
+  - De lijst toont of een medewerker zijn account nog moet instellen, uitgeschakeld is of het portaal beheert.
+  - Alles alleen voor medewerkers van de gemeente die je beheert, niet voor je eigen account, met een reden en in de audit.
+- **Accounts**: de uitleg maakt duidelijk dat een portaal-account een machtiging is en dat inloggen gaat met het inlogaccount in Keycloak; een account dat nog nooit heeft ingelogd (nog niet gekoppeld) is gemarkeerd.
+- Migratie 009: tabel `medewerkerwijzigingen` (geplande in- en uitschakelingen).
+- Vereist oa-uitrol 0.39.0 (rechten in Keycloak, VPS 3).
+
 ## 0.19.0 — 2026-11-26
 
 - **Medewerkers**: nieuwe pagina met de medewerkers van de gemeente die je beheert (leden van de gemeente in Keycloak, of met het attribuut `gemeente`), hun rollen en hun niveau voor persoonsgegevens (PPL 0 tot 3), met zoeken op naam of e-mail.

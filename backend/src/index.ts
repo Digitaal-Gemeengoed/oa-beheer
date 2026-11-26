@@ -4,6 +4,7 @@ import { maakPool } from "./db.js";
 import { maakMailer } from "./mail.js";
 import { Oidc } from "./oidc.js";
 import { voerStatuswijzigingenUit } from "./persoon.js";
+import { voerMedewerkerwijzigingenUit } from "./medewerkerplanning.js";
 import { ruimPogingenOp } from "./pogingen.js";
 import { routes } from "./routes/index.js";
 import { dagelijks } from "./routes/audit.js";
@@ -14,10 +15,11 @@ const oidc = config.oidc ? new Oidc(config.oidc, `${config.herkomst}/api/auth/te
 const app = await bouwApp({ config, pool, oidc, mailer: maakMailer(config, (s) => console.log(s)) }, routes);
 const d = app.diensten;
 
-// Elke 30 seconden: geplande statuswijzigingen, en pogingen ouder dan een dag weg.
+// Elke 30 seconden: geplande statuswijzigingen (accounts en medewerkers), en pogingen ouder dan een dag weg.
 const taken = async () => {
   try {
     await voerStatuswijzigingenUit(pool, d.nu());
+    await voerMedewerkerwijzigingenUit(d, d.nu());
     await ruimPogingenOp(d);
     await dagelijks(d);
   } catch (e) {

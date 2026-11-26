@@ -293,7 +293,7 @@ html, body { margin: 0; background: #f3f5f9; }
 .ab-smal { max-width: 440px; margin: 64px auto; padding: 24px 28px; background: #fff; border: 1px solid var(--ab-rand); border-radius: 16px; box-shadow: var(--ab-schaduw); }
 .ab-vinkjes { display: grid; gap: 6px; border: 1px solid var(--ab-rand); border-radius: var(--ab-hoek); padding: 10px 14px; }
 .ab-vinkjes legend { font-weight: 600; font-size: 13px; padding: 0 4px; }
-.ab-vinkjes label { display: flex; gap: 8px; align-items: center; }
+.ab-formulier .ab-vinkjes label { display: flex; gap: 8px; align-items: center; }
 .ab-rechten { display: flex; flex-wrap: wrap; gap: 4px; }
 .ab-recht { padding: 1px 8px; border-radius: 999px; background: #eef1f5; color: #334155; font-size: 12px; white-space: nowrap; }
 .ab-recht.beheren { background: var(--ab-blauw-licht); color: var(--ab-blauw-donker); }
@@ -691,3 +691,14 @@ a.ab-getalkaart:hover { border-color: var(--ab-blauw); box-shadow: 0 4px 12px rg
 .ab-niveaus { list-style: none; padding: 0; margin: 10px 0; display: grid; gap: 4px; }
 .ab-zoekbalk { display: flex; gap: 8px; align-items: flex-end; margin: 12px 0; }
 .ab-zoekbalk .utrecht-form-field { margin: 0; flex: 1; max-width: 420px; }
+.ab-zoekbalk { justify-content: space-between; flex-wrap: wrap; }
+.ab-zoekbalk-veld { display: flex; gap: 8px; align-items: flex-end; flex: 1; }
+.ab-zoekbalk-veld .utrecht-form-field { margin: 0; flex: 1; max-width: 420px; }
+.ab-statussen { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.ab-acties { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.ab-gepland { margin-top: 4px; }
+.ab-linkknop { background: none; border: 0; padding: 0; color: var(--ab-link, #1d4ed8); text-decoration: underline; cursor: pointer; font: inherit; }
+.ab-formulier .ab-vinkjes label { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+.ab-tabel .ab-pil { white-space: nowrap; }
+.ab-acties { flex-wrap: nowrap; gap: 4px; }
+.ab-acties .utrecht-button { padding-inline: 10px; min-block-size: 32px; font-size: 0.875rem; white-space: nowrap; }
